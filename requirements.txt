@@ -1,0 +1,16 @@
+# Physics-Informed Reduced-Order SPDC-QIUP Forward Simulator Prototype
+# QIUP SPDC/QIUP — Synthetic_v3.3 (prototype until sign-off)
+#
+# Not claimed: Verified Digital Twin / Validated Digital Twin.
+# Official dataset generation for training/verification is blocked until sign-off.
+
+numpy>=1.24
+matplotlib>=3.7
+scipy>=1.10
+PyYAML>=6.0
+Pillow>=9.0
+torchvision>=0.15
+ipykernel>=6.0
+openpyxl>=3.1
+Django>=5.0,<6
+django-cors-headers>=4.3

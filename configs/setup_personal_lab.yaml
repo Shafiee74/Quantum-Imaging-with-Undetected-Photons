@@ -1,0 +1,233 @@
+# Imaging magnification: physical M_QIUP = F2*λ_s/(F1*λ_i) is always SoT (V-P1-06).
+# ``magnification`` is synced to M_QIUP on validate; do not treat it as an independent knob.
+magnification: 1.0
+# EMCCD pixel pitch [µm]: editable in range 6.5–24 (typical QI cluster 13–16; default 16)
+pixel_um: 16.0
+lambda_s_nm: 810.0
+lambda_i_nm: 1550.0
+# CFG-P0-00 frozen wavelengths (approved QIUP system).
+# PDF §6.4: NA = D/(2 f); σ_diff = η·M·(0.61 λ_s/NA)/p  (eq. 142–144)
+# D default = 2·0.04751·75 mm to match prior NA.
+aperture_diameter_mm: 7.1265
+airy_to_gauss_eta: 1.0
+# Pump waist [µm]: editable in range 100–350 (default / optimal = 250)
+pump_waist_um: 250.0
+use_legacy_beam_match: false
+# Pointing jitter: σ_beam = α·w_px; α in [0.01, 0.10] (default 0.03, PDF §2.5)
+pointing_alpha: 0.03
+# PDF §2.6: η_overlap(Δx,Δy) on visibility from pointing jitter (not thermal drift)
+couple_pointing_overlap_visibility: true
+flux0_e_per_s: 40.0
+pump_sigma_rel_at_s1: 0.3
+flux_boost_at_s1: 1.4
+# Report §7.12: Pp1 = ηp,pre Pp,laser ; Pp2 = ηp,return Pp1.
+# No lab milliwatt is given in the report; leave laser null. η default = 1.
+pump_power_laser_mW: null
+pump_pre_crystal_transmission: 1.0
+pump_return_transmission: 1.0
+# two_crystal only: Pp2 = η_NL2 × Pp,laser. Ignored on the paper path.
+pump_to_NL2_transmission: 1.0
+use_independent_pump_power_NL2: false
+pump_power_NL2_override_mW: null
+
+# Physical SPDC gain. Prefer setting mean_photons_per_mode on LatentState.
+# To drive by mean pump power instead, calibrate r=k*sqrt(P_mW) and set k here.
+use_physical_spdc_gain: true
+# CFG-P0-00 canonical hardware: one crystal, two SPDC passes (double_blur).
+# n_crystals=1 (inventory); architecture is not inferred from crystal count.
+# Keep two SPDC interactions (NL1/NL2) — do not collapse to one interaction.
+# crystal_length_mm USER-EDITABLE in [2, 20]; not frozen.
+# Physics-team-approved defaults: double_blur → 2 mm per interaction;
+# single_blur → 10 mm. The user may select any length in [2, 20] mm.
+spdc_architecture: single_crystal_double_pass
+blur_model: double_blur
+spdc_gain_mode: low_gain
+# Intensity-level QIUP imaging plane (not a biphoton Φ model):
+#   near_field  → position correlations; σ from crystal length L
+#   far_field   → momentum correlations; σ from pump waist, λ_i, f_u
+imaging_mode: near_field
+# Undetected-arm focal length [mm] for far-field σ≈f_u·λ_i/(π w_p). null → F1_mm.
+far_field_focal_mm: null
+# V-P1-01: fixed_nbar (dataset shortcut via spdc_gain_mode) |
+# calibrated_source (pump → SPDC model → nbar; for physics validation)
+spdc_source_mode: fixed_nbar
+spdc_default_mean_photons_per_mode: 0.01
+spdc_reference_mean_photons_per_mode: 0.01
+spdc_gain_per_sqrt_mW: null
+spdc_low_gain_max_mean_photons: 0.01
+spdc_high_gain_min_mean_photons: 1.0
+# Crystal length L [mm]: USER variable in [2, 20].
+# Default for double_blur = 2 mm (each pass/crystal); single_blur = 10 mm.
+# σ_SPDC = M·σ_r/p with σ_r = √(2 L λ_p / 3π) (PDF §3.1 + eq. 50).
+crystal_material: ppKTP
+# V-P1-08: only type0 supported (fail-closed)
+qpm_type: type0
+# V-P1-03: grating vector K_g = 2π m / Λ with m = qpm_order (default 1)
+qpm_order: 1
+poling_period_um: 9.675
+# two_crystal only; null → same lab Λ as crystal 1. Ignored on the paper path.
+poling_period_NL2_um: null
+crystal_length_mm: 2.0
+# two_crystal only: length of crystal 2 [mm]. null → same as crystal_length_mm
+# (so double_blur "2 mm each" uses one shared L, or set NL2 explicitly).
+crystal_length_NL2_mm: null
+lambda_p_nm: 532.0
+pol_pump: H
+pol_signal: H
+pol_idler: H
+derive_sigma_spdc: true
+use_derived_diffraction: true
+# PDF §6.5–6.10 C4↔C7 (eq.160+164+166; eq.162 NOT used):
+#   ΔT → Δf → Δz ; σ_defocus = K·|Δz| ; s_focus = |Δz|/Δz_max
+#   K = η·M·NA/(n·p) ; σ_opt = √(σ_diff² + σ_defocus²)
+use_derived_K_defocus: true
+n_medium: 1.0
+eta_defocus: 1.0
+# Legacy robustness span (PDF §6.8 worst-case). Used only if use_derived_K_defocus=false.
+defocus_span_px: 3.6
+K_defocus_px_per_um: 0.036
+delta_z_max_um: 100.0
+# Optional mechanical offset [µm]. Physical: Δz = Δf(T) + (this or 0).
+delta_z_um: null
+enable_lens_rings: false
+lens_shift_x_um: 0.0
+lens_shift_y_um: 0.0
+lens_delta_z_soft_um: 80.0
+lens_shift_soft_um: 40.0
+lens_ring_aperture_px: 22.0
+lens_ring_contrast_max: 0.45
+lens_ring_gaussian_residual: 0.15
+# Unwanted Fabry–Pérot / etalon fringes (filters/windows). Off by default.
+# angle_deg = fringe-band orientation vs horizontal (0=horizontal, 90=vertical; lab ~10–20).
+enable_etalon_fringes: false
+etalon_contrast: 0.28
+etalon_period_px: 34.0
+etalon_angle_deg: -40.0
+etalon_phase_rad: 0.0
+# Optional residual aberration from wavefront RMS (PDF §6.13/6.15) — no Zernike.
+# σ_aberr = η_ab · W_waves · (M · r_Airy / p); δφ_Fan = 2π·W_waves + span·s_align (C3)
+use_derived_aberration: true
+wavefront_rms_waves: 0.0
+eta_aberration: 1.0
+wavefront_corr_px: 12.0
+couple_align_to_wavefront: true
+delta_phi_align_span_rad: 0.35
+sigma_aberration_px: 0.0
+# Geometric IQ — Magnification/Rotation ≠ Optical Blur (PDF §6.17–6.18)
+# ε_M = ΔM/M → image_scale = 1 + ε_M (geometric stretch, not σ_opt)
+delta_M_rel: 0.0
+image_rotation_deg: 0.0
+sigma_blur_extra_px: 0.0
+# Vignetting removed from model (no V_vig / α_vig / s_vig).
+V0: 1.0
+# Idler–idler overlap (PDF §4 eq. 63): Gaussian fields, not δ=1.15 s_align.
+# w2=w1=idler_waist_um; if omitted, idler_waist_um = pump_waist_um in the crystal.
+use_analytic_mode_overlap: true
+idler_waist_um: null
+idler_waist_2_um: null
+# V-P1-04: generation_* → O_geom; relay_*/idler_* → η_mode (not both)
+generation_dx_um: 0.0
+generation_dy_um: 0.0
+generation_dtheta_mrad: 0.0
+relay_dx_um: null
+relay_dy_um: null
+relay_dtheta_mrad: null
+idler_dx_um: 0.0
+idler_dy_um: 0.0
+idler_dtheta_mrad: 0.0
+# Per-frame pump pointing Δx,Δy (px→µm) added to relay offsets only
+inherit_idler_displacement_from_pump: true
+overlap_delta_scale: 1.15
+# PDF §4.1 eq. 65: V_coh = exp(-(ΔL/L_c)²). Lab ΔL (not s_align). Default 0.01 mm; L_c fixed 0.2.
+delta_L_mm: 0.01
+L_coh_mm: 0.2
+# PDF §4.2: two-path intensities. V = 2√(I1 I2)/(I1+I2). Not r(s_align).
+path1_intensity: 1.0
+path2_intensity: 1.0
+use_physical_two_beam: true
+# PDF §4.3: V(x,y) from |E1 E2*| (eq. 74). Set false for legacy mottling (eq. 73).
+use_field_overlap_visibility_map: true
+V_gain_drop: 0.4
+V_map_mottle: 0.25
+mottle_smooth_sigma_px: 8.0
+# PDF §5 physical thermal (not engineered 0.08/0.45/0.02 drifts).
+# T: 20–90 °C, step 0.1, default 84.3. ΔL_th = α_air · L_eff · ΔT.
+n_crystals: 1
+sync_crystal_temperatures: true
+use_physical_thermal: true
+use_physical_qiup_magnification: true
+T_pm0_NL1_C: 84.3
+T_pm0_NL2_C: 84.3
+delta_T_NL1_C: 0.0
+delta_T_NL2_C: 0.0
+T_crystal_NL1_C: 84.3
+T_crystal_NL2_C: 84.3
+T_crystal_C: 84.3
+T_env_C: 23.0
+T_pm_C: 84.3
+T_ref_span_C: 8.0
+alpha_path_per_C: -9.66e-7
+L_eff_path_mm: 0.20
+F1_mm: 75.0
+F2_mm: 150.0
+lens_focal_mm: 75.0
+lens_material: N-BK7
+beam_thermal_alpha_x_um_per_C: 1.725
+beam_thermal_alpha_y_um_per_C: 1.725
+phase_drift_rad_per_frame_at_s1: 0.0
+vis_walk_per_frame_at_s1: 0.0
+beam_drift_x_px_per_frame_at_s1: 0.0
+beam_drift_y_px_per_frame_at_s1: 0.0
+phase_jitter_align_at_s1: 0.03
+dlam_s_nm_per_C: 0.0
+dlam_i_nm_per_C: 0.0
+dM_over_M_per_C: 0.0
+QE: 0.65
+# V-P1-07: explicit detector path — analog_emccd | photon_counting (never infer)
+detector_mode: analog_emccd
+read_noise0_e: 8.0
+read_noise_span_e: 40.0
+cic0: 0.006
+prnu_sigma: 0.03
+dark0: 0.0025
+dark_exp: 7.2
+use_physical_dark: false
+T_sensor_C: -80.0
+T_sensor_max_C: -40.0
+T_sensor_min_C: -100.0
+dark_arrhenius_prefactor: 0.0025
+Eg_eV: 1.12
+hot_frac_at_s1: 0.002
+hot_amp_lo: 2.0
+hot_amp_hi: 8.0
+accidental_e_at_s1: 0.02
+pc_threshold_k: 4.0
+full_well_e: 80000.0
+g_adu: 0.45
+bias_adu: 100.0
+max_adu: 65535.0
+em_gain_default: 250.0
+slm_bit_depth: 8
+slm_levels0: 256.0
+slm_pixel_um: 8.0
+slm_fill_factor: 0.9
+slm_phi_max_rad: 6.283185307179586
+slm_quant_coef: 0.985
+slm_levels_floor: 3
+slm_gamma_span: 0.9
+slm_leak_eta: 0.4
+setup_id: setup_personal_lab_canonical_v1
+notes: >-
+  CFG-P0-00 canonical lab: n_crystals=1, single_crystal_double_pass,
+  analog_emccd, double_blur (default L=2 mm), low_gain, fixed_nbar.
+  crystal_length_mm is user-editable in [2, 20] mm (not hash-frozen).
+  single_blur default L=10 mm; double_blur default L=2 mm per crystal/pass.
+  Frozen file hash lives in configs/canonical_config_hash.json.
+  Edit pump_waist_um in [100, 350] µm (default 250).
+  Edit pixel_um in [6.5, 24] µm for your EMCCD model (default 16; typical QI: 13–16).
+  Edit pointing_alpha in [0.01, 0.10] (default 0.03); σ_beam = α·w_px.
+  PDF §2.6: η_overlap = exp(-(Δx²+Δy²)/(2w²)) couples pointing jitter to visibility.
+  σ_SPDC = M·σ_r/p, σ_r=√(2Lλ_p/3π).
+  Idler overlap: η_mode from two Gaussians; default w2=w1=pump_waist_um.
+  Idler Δx,Δy inherit each-frame pump pointing (plus optional idler_dx_um / idler_dy_um).
+  Set use_legacy_beam_match=true only for Phase-0 regression (ignores pump_waist_um).

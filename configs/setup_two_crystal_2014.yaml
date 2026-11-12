@@ -1,0 +1,125 @@
+# Documented two-crystal inventory (reported crystal size 1 x 2 x 2 mm^3)
+# with explicit Task 11.5 reference policy.
+# Nominal pump is 532.0 nm (physics-team / publication). The mathematically
+# exact pump for 810/1550 nm is ≈531.991525 nm by energy conservation; that
+# value is retained only as ENERGY_EXACT_LAMBDA_P_FROM_810_1550_NM and must
+# not replace the nominal pump merely to zero the U01 residual.
+# The configured 9.675 um period is evaluated, never optimized.
+meta:
+  setup_id: two_crystal_2014_reference_v2
+  physics_policy_id: three_configuration_physics_team_v2
+  notes: >-
+    Reference inventory and reported temperatures/poling. The conditional
+    Gaussian spatial model and ideal unit pump path transmissions are software
+    assumptions pending apparatus calibration; no end-to-end experimental
+    validation is claimed.
+
+architecture:
+  spdc_architecture: two_crystal
+  imaging_mode: far_field
+  n_physical_crystals: 2
+  n_spdc_interactions: 2
+  architecture_propagation_model: architecture_specific_complex_field_v1
+  spatial_transfer_kernel: conditional_gaussian_v1
+
+physical_crystal:
+  crystal_matching_mode: matched_nominal
+  crystal_material: ppKTP
+  crystal_material_NL2: ppKTP
+  spdc_type: type0
+  qpm_type: type0
+  qpm_type_NL2: type0
+  crystal_1_length_mm: 2.0
+  # QIUP two-crystal: NL2 length is displayed and equals NL1.
+  crystal_2_length_mm: 2.0
+  crystal_1_temperature_C: 83.7
+  crystal_2_temperature_C: 84.7
+  crystal_1_poling_period_um: 9.675
+  crystal_2_poling_period_um: 9.675
+  qpm_order: 1
+  qpm_order_NL2: 1
+  qpm_duty_cycle: 0.5
+  qpm_duty_cycle_NL2: 0.5
+  sync_crystal_temperatures: false
+  # Mandatory equilibrium phase-matching temperatures (separate ovens).
+  T_pm0_NL1_C: 83.7
+  T_pm0_NL2_C: 84.7
+  # Lab detuning dT = T_crystal - T_pm; user variable, default 0.
+  dT_NL1_C: 0.0
+  dT_NL2_C: 0.0
+
+source:
+  lambda_p_nm: 532.0
+  lambda_s_nm: 810.0
+  lambda_i_nm: 1550.0
+  spdc_source_mode: fixed_nbar
+  fixed_source_input: nbar
+  blur_model: double_blur
+
+pump:
+  pump_balance_mode: matched_nominal
+  pump_power_laser_mW: 1.0
+  # Lossless 50:50 BS: each crystal gets half the pre-BS laser (L03).
+  pump_target_power_NL1_mW: 0.5
+  pump_target_power_NL2_mW: 0.5
+  pump_pre_crystal_transmission: 1.0
+  # Physics-team reference: split / branched pump (not sequential pass-through).
+  two_crystal_pump_topology: branched_independent
+  pump_bs_reflectance: 0.5
+  pump_to_NL2_transmission: 1.0
+  pump_between_crystals_transmission: null
+
+interaction_1:
+  pump_waist_NL1_um: 250.0
+  pump_focus_z_NL1_um: 0.0
+
+interaction_2:
+  pump_waist_NL2_um: 250.0
+  pump_focus_z_NL2_um: 0.0
+
+object:
+  object_mode: reference_slm
+  object_device: transmissive_slm
+  object_type: transmissive
+  # Two-crystal object coefficient is intensity transmission T in [0, 1].
+  object_intensity_T: null
+  object_phase_rad: null
+  object_plane: idler_fourier_plane_between_crystals
+  object_transmission_map: ref.T
+  object_phase_map: ref.phi
+  object_phase_map_path: null
+  object_amplitude_map_path: null
+  object_intensity_map_path: null
+  object_phase_units: rad
+  object_intensity_convention: intensity
+  object_coordinate_orientation: object_xy
+  object_reflection_amplitude: 1.0
+  object_reflection_phase: 0.0
+  object_forward_transform: identity
+  object_backward_transform: identity
+  object_interaction_count: 1
+  object_map_pixel_um: 16.0
+  idler_round_trip_loss: 0.0
+  idler_mode_matching: 1.0
+  relative_interferometric_phase: 0.0
+
+geometry:
+  far_field_focal_mm: 75.0
+  F1_mm: 75.0
+  F2_mm: 150.0
+  far_field_idler_relay_magnification: 1.0
+  far_field_signal_relay_magnification: 1.0
+
+signal_filter:
+  camera_filter_preset: paper_3nm
+  camera_filter_center_nm: 810.0
+  camera_filter_fwhm_nm: 3.0
+  camera_filter_model: gaussian
+  signal_spectrum_fwhm_nm: 20.0
+  final_camera_collection_policy: uniform
+
+detector:
+  detector_mode: analog_emccd
+  detector_output_port: plus
+  emccd_model: register
+  adc_bit_depth: 16

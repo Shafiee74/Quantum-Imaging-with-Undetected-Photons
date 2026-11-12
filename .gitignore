@@ -1,0 +1,66 @@
+﻿# QIUP Version 3.4.2 — ignore reproducible artifacts
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/
+
+# UI build / package caches
+qiup-ui/node_modules/
+qiup-ui/.next/
+qiup-ui/.tools/
+
+# Temporary local outputs
+*.log
+.tmp/
+.tmp_*/
+.z*/
+*_tmp_*
+outputs/
+qiup_web/db.sqlite3
+qiup_web/**/__pycache__/
+
+# Archives (not part of the release pack)
+*.rar
+*.zip
+*.7z
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.cab
+
+# Large / regeneratable / non-code trees
+exp data/
+reference_outputs/
+docs/
+# Article / verification run products (regenerate via tools/*.py; not shipped)
+evidence/
+
+# Notebook local run outputs
+examples/notebooks/_run_output/
+
+# One-shot cleanup helpers (not part of release)
+_cleanup_*.py
+_fix_notebooks.py
+
+
+# Local manuscript redraws / lab raw (not part of GitHub release)
+article figures/
+

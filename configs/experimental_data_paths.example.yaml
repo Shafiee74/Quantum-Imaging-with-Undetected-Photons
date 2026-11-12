@@ -1,0 +1,24 @@
+# Example configuration for locating external Configuration-C recordings.
+#
+# Copy to a local (gitignored) file if needed, or pass the path on the CLI.
+# Reusable modules must NOT embed machine-absolute defaults; use:
+#   - CLI flag / task config value, or
+#   - environment variable QIUP_EXPERIMENTAL_DATA_ROOT
+#
+# The experimental source tree must be treated as read-only.
+# Do not move, rename, or rewrite frames under this root from automation.
+
+experimental_data:
+  # Example (Windows) — replace with the path on the machine running the task:
+  # root: "D:/Quantum/Quantum/QIUP_Synthetic_Dataset/Ver1.3.4(Digital_Twin_Verification)/Report/Received_Verification/for generate results/exp data"
+  root: null
+  env_var: QIUP_EXPERIMENTAL_DATA_ROOT
+  read_only: true
+  expected_children:
+    - "lens drift"
+    - "mirror drift"
+
+notes: >
+  Task 02 only documents how to point at experimental data. Validation
+  runners in later tasks must open files in place and write all derived
+  products under evidence/taskXX_<name>/.

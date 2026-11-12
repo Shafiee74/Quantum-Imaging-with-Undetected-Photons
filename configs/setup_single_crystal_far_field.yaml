@@ -1,0 +1,114 @@
+# One physical ppKTP crystal and two directed SPDC interactions.
+meta:
+  setup_id: single_crystal_far_field_v2
+  physics_policy_id: three_configuration_physics_team_v2
+  notes: >-
+    Reference far-field Michelson topology with a reflective SLM replacing
+    the idler end mirror. Fourier-plane geometry is explicit; spatial
+    propagation is reduced order and awaits apparatus calibration.
+
+architecture:
+  spdc_architecture: single_crystal_double_pass
+  imaging_mode: far_field
+  n_physical_crystals: 1
+  n_spdc_interactions: 2
+  architecture_propagation_model: architecture_specific_complex_field_v1
+  spatial_transfer_kernel: conditional_gaussian_v1
+
+physical_crystal:
+  crystal_material: ppKTP
+  spdc_type: type0
+  qpm_type: type0
+  crystal_length_mm: 2.0
+  crystal_temperature_C: 83.7
+  poling_period_um: 9.675
+  qpm_order: 1
+  qpm_duty_cycle: 0.5
+  sync_crystal_temperatures: true
+  # NL operating / T_pm0: Lemos NL1 reference (83.7 C) for controlled single-crystal benchmark.
+  T_pm0_NL_C: 83.7
+  dT_NL_C: 0.0
+
+source:
+  # Nominal physical wavelengths (physics-team / publication). Energy-exact
+  # pump from 810/1550 is ≈531.991525 nm — do not substitute it here to zero residual.
+  lambda_p_nm: 532.0
+  lambda_s_nm: 810.0
+  lambda_i_nm: 1550.0
+  spdc_source_mode: fixed_nbar
+  fixed_source_input: nbar
+  blur_model: double_blur
+
+pump:
+  pump_balance_mode: matched_nominal
+  pump_power_laser_mW: 1.0
+  pump_target_power_NL1_mW: 1.0
+  pump_target_power_NL2_mW: 1.0
+  pump_pre_crystal_transmission: 1.0
+  pump_return_transmission: 1.0
+
+interaction_1:
+  pump_waist_NL1_um: 250.0
+  pump_focus_z_NL1_um: 0.0
+
+interaction_2:
+  pump_waist_NL2_um: 250.0
+  pump_focus_z_NL2_um: 0.0
+  relative_interferometric_phase: 0.0
+  idler_mode_matching: 1.0
+  idler_return_phase: 0.0
+  idler_round_trip_loss: 0.0
+  signal_return_path_transmission: 1.0
+  signal_return_reflection_amplitude: 1.0
+  signal_return_phase: 0.0
+  signal_return_mode_overlap: 1.0
+  signal_return_seeds_second_interaction: true
+
+object:
+  object_mode: reference_slm
+  object_device: reflective_slm
+  object_type: reflective
+  # Single-crystal object coefficient is intensity reflectance R in [0, 1].
+  object_intensity_R: null
+  object_phase_rad: null
+  object_plane: idler_far_field_fourier_plane
+  object_transmission_map: ref.T
+  object_phase_map: ref.phi
+  object_phase_map_path: null
+  object_amplitude_map_path: null
+  object_intensity_map_path: null
+  object_phase_units: rad
+  object_intensity_convention: intensity
+  object_coordinate_orientation: object_xy
+  object_reflection_amplitude: 1.0
+  object_reflection_phase: 0.0
+  object_forward_transform: identity
+  object_backward_transform: identity
+  object_interaction_count: 1
+  object_map_pixel_um: 16.0
+
+geometry:
+  # Stock Lemos-like far-field geometry (distinct from lab-matched C_lab):
+  # far_field_focal_mm / F1 = 75 mm idler Fourier; F2 = 150 mm signal/camera.
+  # Lab-matched 150 mm idler lens lives only in setup_config_c_lab_v1.yaml.
+  far_field_focal_mm: 75.0
+  F1_mm: 75.0
+  F2_mm: 150.0
+  far_field_idler_relay_magnification: 1.0
+  far_field_signal_relay_magnification: 1.0
+  image_rotation_deg: 0.0
+  delta_M_rel: 0.0
+
+signal_filter:
+  camera_filter_preset: paper_3nm
+  camera_filter_center_nm: 810.0
+  camera_filter_fwhm_nm: 3.0
+  camera_filter_model: gaussian
+  signal_spectrum_fwhm_nm: 20.0
+  final_camera_collection_policy: uniform
+
+detector:
+  detector_mode: analog_emccd
+  detector_output_port: plus
+  emccd_model: register
+  adc_bit_depth: 16

@@ -1,0 +1,12 @@
+# Example: personal-lab defaults with unwanted Fabry–Pérot / etalon fringes ON.
+# Copy of lab knobs is via personal_lab_template + these overrides in code,
+# or merge these keys into setup_personal_lab.yaml.
+#
+# I' = I * (1 + c * cos(2π u / Λ + φ)),  u = x sinα − y cosα
+# α = etalon_angle_deg relative to horizontal (lab tilt ~10–20°).
+
+enable_etalon_fringes: true
+etalon_contrast: 0.08
+etalon_period_px: 12.0
+etalon_angle_deg: 15.0
+etalon_phase_rad: 0.0

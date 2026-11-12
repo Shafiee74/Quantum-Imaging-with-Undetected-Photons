@@ -1,0 +1,18 @@
+# requirements.frozen.txt — Comment 8.4 (final verification evidence)
+# Physics-Informed Reduced-Order SPDC-QIUP Forward Simulator Prototype
+#
+# Install offline from a clean extraction:
+#   python -m pip install --no-index --find-links=<wheels> -r requirements.frozen.txt
+# Or (online lab only, not for formal sign-off):
+#   python -m pip install -r requirements.frozen.txt
+#
+# Do not claim Verified/Validated Digital Twin. Official dataset generation blocked.
+
+numpy==1.26.4
+scipy==1.11.4
+matplotlib==3.10.3
+PyYAML==6.0.1
+Pillow==12.3.0
+openpyxl==3.1.4
+# Optional offline object path (tests must pass without network even if absent):
+# torchvision==0.15.2

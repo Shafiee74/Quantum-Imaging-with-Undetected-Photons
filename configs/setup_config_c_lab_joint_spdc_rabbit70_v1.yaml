@@ -1,0 +1,169 @@
+# NEW profile: Joint-SPDC Rabbit70 (2026-10-27). Mi=Ms=1.
+# Synthetic rabbit = 70% of max isotropic fit in signal 10%-peak support.
+# Does NOT replace configs/setup_config_c_lab_v1.yaml.
+
+# Laboratory-specific Configuration C profile (Task 16).
+# Does NOT replace stock Configuration C (single_crystal_far_field / alias "C").
+#
+# Provenance for each laboratory-facing field is recorded in
+# evidence/task16_config_c_lab/tables/laboratory_parameter_manifest.csv
+# and configs/config_c_lab_manifest.json.
+#
+# Z5 correction: the nominal source rating is 250 mW and the reported pump
+# power at the crystal is approximately 70 mW. The pre-crystal transmission
+# records that distinction explicitly (70/250 = 0.28).
+
+meta:
+  setup_id: config_c_lab_joint_spdc_rabbit70_v1
+  physics_policy_id: three_configuration_physics_team_v2
+  notes: >-
+    Laboratory overlay on Configuration-C architecture (single-crystal
+    double-pass far-field). Stock C geometry (75/150 mm Lemos) is unchanged.
+    Lab-matched idler Fourier lens is 150 mm (far_field_focal_mm / F1_mm);
+    signal-path and camera/front lenses remain F2_mm=150 mm. Nominal
+    wavelengths are 532/810/1550 nm. The pump waist is 1000 um under the
+    explicit assumption that the reported 2 mm spot is the 1/e^2 intensity
+    diameter. The nominal laser rating is 250 mW and the pump power at the
+    crystal is approximately 70 mW.     Production freeze (2026-10-15): L=2 mm,
+    Ms=1, effective idler relay Mi=2.0, EMCCD 1024×1024 @ 13 µm pitch,
+    transmissive binary-mask rabbit (frozen Y1 source). Experimental TIFF
+    tree is READ-ONLY.
+
+architecture:
+  spdc_architecture: single_crystal_double_pass
+  imaging_mode: far_field
+  n_physical_crystals: 1
+  n_spdc_interactions: 2
+  architecture_propagation_model: architecture_specific_complex_field_v1
+  spatial_transfer_kernel: conditional_gaussian_v1
+
+physical_crystal:
+  crystal_material: ppKTP
+  spdc_type: type0
+  qpm_type: type0
+  crystal_length_mm: 2.0
+  crystal_temperature_C: 84.3
+  poling_period_um: 9.675
+  qpm_order: 1
+  qpm_duty_cycle: 0.5
+  sync_crystal_temperatures: true
+  T_pm0_NL_C: 84.3
+  dT_NL_C: 0.0
+
+source:
+  # Nominal lab wavelengths (physics-team). Do NOT use energy-exact
+  # ≈531.991525 nm merely to zero the U01 residual.
+  lambda_p_nm: 532.0
+  lambda_s_nm: 810.0
+  lambda_i_nm: 1550.0
+  spdc_source_mode: fixed_nbar
+  fixed_source_input: nbar
+  blur_model: double_blur
+
+pump:
+  pump_balance_mode: matched_nominal
+  # Nominal source rating; not the power at the crystal.
+  pump_power_laser_mW: 250.0
+  # 250 mW nominal source times 0.28 gives 70 mW at the crystal.
+  pump_target_power_NL1_mW: 70.0
+  pump_target_power_NL2_mW: 70.0
+  pump_pre_crystal_transmission: 0.28
+  pump_return_transmission: 1.0
+  # Assuming the reported 2 mm spot is the 1/e^2 INTENSITY DIAMETER.
+  # Status: ASSUMPTION_PENDING_DEFINITION_CONFIRMATION; not camera-image fitted.
+  pump_waist_um: 1000.0
+
+interaction_1:
+  pump_waist_NL1_um: 1000.0
+  pump_focus_z_NL1_um: 0.0
+
+interaction_2:
+  pump_waist_NL2_um: 1000.0
+  pump_focus_z_NL2_um: 0.0
+  relative_interferometric_phase: 0.0
+  idler_mode_matching: 1.0
+  idler_return_phase: 0.0
+  idler_round_trip_loss: 0.0
+  signal_return_path_transmission: 1.0
+  signal_return_reflection_amplitude: 1.0
+  signal_return_phase: 0.0
+  signal_return_mode_overlap: 1.0
+  signal_return_seeds_second_interaction: true
+
+object:
+  object_mode: generic_research_object
+  object_device: binary_mask
+  object_type: transmissive
+  object_intensity_R: null
+  object_phase_rad: null
+  object_plane: idler_far_field_fourier_plane
+  object_transmission_map: ref.T
+  object_phase_map: ref.phi
+  object_phase_map_path: null
+  object_amplitude_map_path: null
+  object_intensity_map_path: null
+  object_phase_units: rad
+  object_intensity_convention: intensity
+  object_coordinate_orientation: object_xy
+  object_reflection_amplitude: 1.0
+  object_reflection_phase: 0.0
+  object_forward_transform: identity
+  object_backward_transform: identity
+  object_interaction_count: 2
+  # Laboratory object/camera grid pitch (Andor iXon Ultra 888, binning 1×1).
+  object_map_pixel_um: 13.0
+  # Opt-in Joint-SPDC Rabbit70 pathway (legacy C_lab YAML unchanged).
+  c_lab_spatial_object_model: joint_spdc_rabbit70_v1
+  rabbit70_mask_npz: C_lab_JointSPDC_Rabbit70_v1_27Oct/Rabbit_Physical_Mask.npz
+  # Authoritative Y1 rabbit caliper aperture (2026-10-15 final freeze).
+  # Width = shorter dimension along native mask +x (columns); height = longer +y (rows).
+  y1_rabbit_aperture_width_mm: 4.732000
+  y1_rabbit_aperture_height_mm: 5.681000
+  # Mirror object +x in the Y1 plane so camera silhouette matches laboratory TIFF
+  # (signed far-field mapping inverts left-right vs native mask photograph).
+  rabbit_object_flip_x: true
+  rabbit_object_flip_y: false
+  rabbit_object_rotate_180: false
+
+geometry:
+  # Lab-matched C (physics-team): idler-path / undetected-arm Fourier lens = 150 mm.
+  # Role: f_i in resolved_far_field_focal_mm / far-field σ and signed M.
+  # Stock Configuration C keeps 75 mm (Lemos) so stock vs lab remain distinguishable.
+  far_field_focal_mm: 150.0
+  # Sync with far_field_focal_mm so M_QIUP = F2·λs/(F1·λi) matches spatial mapping.
+  F1_mm: 150.0
+  # Signal-path + camera/front imaging (aliased as f_c in optics); already 150 mm.
+  F2_mm: 150.0
+  # Effective idler far-field relay magnification (final laboratory freeze Mi=2.0).
+  far_field_idler_relay_magnification: 1.0
+  far_field_signal_relay_magnification: 1.0
+  image_rotation_deg: 0.0
+  delta_M_rel: 0.0
+
+signal_filter:
+  camera_filter_preset: laboratory_10nm
+  camera_filter_center_nm: 810.0
+  camera_filter_fwhm_nm: 10.0
+  camera_filter_model: gaussian
+  signal_spectrum_fwhm_nm: 20.0
+
+detector:
+  detector_mode: analog_emccd
+  detector_output_port: plus
+  emccd_model: register
+  adc_bit_depth: 16
+  # Full-frame acquisition; simulation grids use 1024×1024 @ this pitch unless overridden per task.
+  pixel_um: 13.0
+
+camera_display:
+  camera_native_height_px: 1024
+  camera_native_width_px: 1024
+  export_zoom_crop_enabled: true
+  export_zoom_crop_mode: centered_fixed_crop
+  export_zoom_center_source: signal_spot_center_from_reference
+  export_zoom_export_width_px: 455
+  export_zoom_export_height_px: 419
+  export_zoom_preserve_native_frame: true
+  export_zoom_resize_after_crop: false
+  export_zoom_interpolation: none
+  export_zoom_export_dtype: uint16

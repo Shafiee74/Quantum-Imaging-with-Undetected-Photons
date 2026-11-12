@@ -1,0 +1,16 @@
+# Task 2 profile A: physical inventory only. Optical propagation is pending.
+setup_id: setup_A_two_crystal_far_field_v1
+spdc_architecture: two_crystal
+imaging_mode: far_field
+n_crystals: 2
+sync_crystal_temperatures: false
+crystal_length_mm: 2.0
+# QIUP two-crystal: NL2 length is displayed and equals NL1.
+crystal_length_NL2_mm: 2.0
+T_pm0_NL1_C: 83.7
+T_pm0_NL2_C: 84.7
+dT_NL1_C: 0.0
+dT_NL2_C: 0.0
+blur_model: double_blur
+detector_mode: analog_emccd
+spdc_source_mode: fixed_nbar

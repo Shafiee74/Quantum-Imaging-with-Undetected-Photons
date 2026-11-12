@@ -1,0 +1,46 @@
+{
+  "decision_id": "physics_team_crystal_length_decision_v1",
+  "policy_id": "physics_team_user_variable_v1",
+  "status": "approved_physics_team",
+  "supersedes": {
+    "source": "Digital_Twin_v3.3.1_Critical_Problems_Team_Report.docx",
+    "finding": "Critical Problem 1 / CFG-P0-00",
+    "superseded_requirement": "Fixed canonical crystal_length_mm = 10 mm (frozen identity field)",
+    "superseded_date_note": "2026-09-08 action plan and 2026-09-15 critical review baseline"
+  },
+  "approved_specification": {
+    "crystal_length_mm_user_variable": true,
+    "allowed_range_mm": {
+      "minimum": 2.0,
+      "maximum": 20.0,
+      "fail_closed_outside_range": true
+    },
+    "defaults_mm": {
+      "single_blur": 10.0,
+      "double_blur_interaction_1": 2.0,
+      "double_blur_interaction_2": 2.0,
+      "double_blur_note": "2.0 mm per SPDC interaction (NL1 and NL2 share the same setup field)"
+    },
+    "explicit_user_value_overrides_default": true,
+    "not_a_frozen_canonical_identity_field": true
+  },
+  "runtime_implementation": {
+    "module": "setup_params.py",
+    "constants": [
+      "CRYSTAL_LENGTH_POLICY_ID",
+      "CRYSTAL_LENGTH_MM_MIN",
+      "CRYSTAL_LENGTH_MM_MAX",
+      "CRYSTAL_LENGTH_MM_DEFAULT_SINGLE_BLUR",
+      "CRYSTAL_LENGTH_MM_DEFAULT_DOUBLE_BLUR"
+    ],
+    "fixture": "configs/canonical_config_hash.json",
+    "evidence_tests": [
+      "tests/test_canonical_config.py"
+    ]
+  },
+  "governance": {
+    "release_independently_approved": false,
+    "finding_cfg_p0_00_closed": false,
+    "note": "Policy approved by physics team; formal Evidence Complete / Independent Review / Closed still pending per Comment 8 register."
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "finding": "CFG-P0-00",
+  "setup_id": "setup_personal_lab_canonical_v1",
+  "yaml_path": "configs/setup_personal_lab.yaml",
+  "yaml_sha256": "0949aa46e73b9933f5caa4b475ba0193a3960bd57cab1ddc162acd17da68d26d",
+  "config_hash": "4c89156ef5149f36117bbbf5e16e9a8ddaf172029d7c46ff59bfcbd224a55094",
+  "algorithm": "sha256",
+  "canonical_default_crystal_length_mm": 2.0,
+  "note": "crystal_length_mm is user-editable in [2,20]; not frozen. Defaults: double_blur=2, single_blur=10.",
+  "crystal_length_policy": {
+    "policy_id": "physics_team_user_variable_v1",
+    "user_variable": true,
+    "minimum_mm": 2.0,
+    "maximum_mm": 20.0,
+    "single_blur_default_mm": 10.0,
+    "double_blur_default_mm_per_interaction": 2.0
+  },
+  "frozen_fields": {
+    "n_crystals": 1,
+    "spdc_architecture": "single_crystal_double_pass",
+    "lambda_p_nm": 532.0,
+    "lambda_s_nm": 810.0,
+    "lambda_i_nm": 1550.0,
+    "detector_mode": "analog_emccd",
+    "blur_model": "double_blur",
+    "spdc_gain_mode": "low_gain",
+    "spdc_source_mode": "fixed_nbar"
+  }
+}
