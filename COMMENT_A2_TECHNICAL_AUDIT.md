@@ -121,8 +121,9 @@ python verify_sha256_manifest.py
 
 ## 9. Immutable release pointer
 
-- **Commit SHA:** `56df7f960bb2be1052307593173d5730e2ee560d`
-- **Branch:** `main` (local ahead of `origin/main` by this Comment A2 commit until push)
+- **Primary close-out commit:** `56df7f960bb2be1052307593173d5730e2ee560d`
+- **Audit SHA pointer commit:** `efda99246789b076650eb9e9db2e1bc5213d0416`
+- **Branch:** `main` (local ahead of `origin/main` until push)
 - **Repository:** https://github.com/Shafiee74/Quantum-Imaging-with-Undetected-Photons
 - **Recommended tag (after push):** `v3.4.2-comment-a2`
 - Push / tag creation was not performed automatically.
