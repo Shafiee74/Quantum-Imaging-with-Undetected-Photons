@@ -121,9 +121,9 @@ python verify_sha256_manifest.py
 
 ## 9. Immutable release pointer
 
+- **Public tip (`main`):** `0590ce8073c53f812166a19219aff15c560319c1`
 - **Primary close-out commit:** `56df7f960bb2be1052307593173d5730e2ee560d`
-- **Audit SHA pointer commit:** `efda99246789b076650eb9e9db2e1bc5213d0416`
-- **Branch:** `main` (local ahead of `origin/main` until push)
-- **Repository:** https://github.com/Shafiee74/Quantum-Imaging-with-Undetected-Photons
-- **Recommended tag (after push):** `v3.4.2-comment-a2`
-- Push / tag creation was not performed automatically.
+- **Branch:** https://github.com/Shafiee74/Quantum-Imaging-with-Undetected-Photons/tree/main
+- **Tag:** `v3.4.2-comment-a2` — https://github.com/Shafiee74/Quantum-Imaging-with-Undetected-Photons/releases/tag/v3.4.2-comment-a2
+- **Anonymous checks (2026-11-14):** public README shows corrected A/B/C/D; `tools/figure6a_experimental_fringe_center_correction.py` reachable; `VERSION` = 3.4.2.
+- EMCCD datasets remain unpublished by design.
