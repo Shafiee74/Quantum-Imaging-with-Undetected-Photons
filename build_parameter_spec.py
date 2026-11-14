@@ -1,4 +1,8 @@
-"""Generate the Version 3.4.1 parameter inventory without changing forward physics.
+"""Generate the parameter inventory without changing forward physics.
+
+Package release identity is Version 3.4.2. Inventory/audit filenames that still
+contain ``3.4.1`` are frozen historical artifact names retained for traceability.
+"""
 
 Every ``SetupParams`` and ``LatentState`` field gets exactly one row. The
 configurations in which a field is consumed are not hand-written: they are
