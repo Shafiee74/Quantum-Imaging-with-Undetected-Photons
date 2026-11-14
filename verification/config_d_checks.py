@@ -1,4 +1,10 @@
-"""Configuration D (two_crystal + near_field) independent physics checks.
+"""Two-crystal near-field independent physics checks (historical module name).
+
+Module path ``verification.config_d_checks`` is retained for freeze stability.
+After the 2026-10-19 manuscript letter migration, the physical profile under
+test is **manuscript B** = registry ``two_crystal_near_field``
+(legacy evidence letter was ``D``). Manuscript letter ``D`` is now
+single-crystal near-field and is **not** the target of these checks.
 
 Each check evaluates the production simulator and compares it with an
 expected value computed only from ``verification.independent_reference``.
@@ -46,7 +52,11 @@ from simulate import simulate_forward
 from verification import independent_reference as ref
 
 SEED = 20260926
-PROFILE = "D"
+# Stable physical identity (manuscript B). Do not use letter "D" here:
+# manuscript D is single_crystal_near_field after the B↔D letter migration.
+PROFILE = "two_crystal_near_field"
+MANUSCRIPT_LETTER = "B"
+LEGACY_EVIDENCE_LETTER = "D"
 SOFTWARE_TEST_K_PER_SQRT_MW = 0.05
 SOFTWARE_TEST_CALIBRATION_ID = "SOFTWARE_TEST_ONLY_NOT_A_LAB_CALIBRATION"
 

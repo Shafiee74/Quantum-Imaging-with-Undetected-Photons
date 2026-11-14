@@ -33,12 +33,13 @@ import numpy as np
 
 # ---------------------------------------------------------------------------
 # Release identity (Comment 7.2 — unambiguous version, not phase5_v1)
-# Package/working-tree designation is v3.4.1; the reduced-order physics model
-# lineage remains 3.3.1-remediated. Do not collapse these into one label.
+# Package/working-tree designation is v3.4.2 (manuscript / SI reported version);
+# the reduced-order physics model lineage remains 3.3.1-remediated.
+# Do not collapse these into one label.
 # ---------------------------------------------------------------------------
 
 HASH_ALGORITHM = "sha256"
-PACKAGE_VERSION = "3.4.1"
+PACKAGE_VERSION = "3.4.2"
 RELEASE_VERSION = PACKAGE_VERSION
 MODEL_FAMILY = "qiup_spdc_simulator"
 PHYSICS_MODEL_VERSION = "3.3.1-remediated"
@@ -55,7 +56,7 @@ RELEASE_STATUS = "prototype"
 RELEASE_CLASSIFICATION = "Prototype / Pre-validation QIUP Simulator"
 CALIBRATION_STATUS = "NOT YET EXPERIMENTALLY CALIBRATED"
 CALIBRATION_STATEMENT = (
-    "Version 3.4.1 is a prototype/pre-validation physics-based QIUP simulator. "
+    "Version 3.4.2 is a prototype/pre-validation physics-based QIUP simulator. "
     "The implemented physical model and software verification tests do not "
     "constitute experimental calibration or validation. Calibration against "
     "the actual laboratory pump, nonlinear crystals, optical relays, SLM, and "

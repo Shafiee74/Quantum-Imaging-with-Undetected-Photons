@@ -1,4 +1,4 @@
-"""Active evidence helpers extracted for Version 3.4.1.
+"""Active evidence helpers extracted for Version 3.4.2.
 
 These helpers were previously embedded in
 ``generate_final_three_configuration_evidence.py`` (A/B/C Task-12 tool).

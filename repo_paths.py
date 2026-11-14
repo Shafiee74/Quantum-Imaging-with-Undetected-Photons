@@ -1,4 +1,4 @@
-"""Canonical repository paths for Version 3.4.1 (post-cleanup).
+"""Canonical repository paths for Version 3.4.2 (post-cleanup).
 
 Import from active scripts and tests so historical path moves stay consistent.
 """

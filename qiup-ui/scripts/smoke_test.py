@@ -15,8 +15,9 @@ CONFIG = {
     "size": 64,
     "seed": 15000,
     "thermal": {
+        # Manuscript A/B = two-crystal (NL1/NL2); C/D defaults come from YAML.
         "A": {"T_pm0_NL1_C": 83.7, "T_pm0_NL2_C": 84.7, "dT_NL1_C": 0.2, "dT_NL2_C": 0.0},
-        "B": {"T_pm0_NL_C": 84.3, "dT_NL_C": 0.1},
+        "B": {"T_pm0_NL1_C": 83.7, "T_pm0_NL2_C": 84.7, "dT_NL1_C": 0.1, "dT_NL2_C": 0.0},
     },
     "noisy_setup": {
         "blur_model": "double_blur",

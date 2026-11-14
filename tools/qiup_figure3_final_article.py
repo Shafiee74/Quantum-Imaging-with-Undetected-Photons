@@ -58,9 +58,9 @@ CAPTION_PANEL_B_NOTE = (
     "$R=\\mathrm{sinc}^{2}(\\Delta kL/2)$ is shown over the symmetric range "
     "$\\Delta kL/(2\\pi)\\in[-1.5,1.5]$, including the complete central lobe, "
     "adjacent side-lobe portions, and zeros at $\\pm1$. The vertical dotted line at zero marks "
-    "phase matching ($T\\approx75.6~^\\circ$C for the reference Sellmeier model). "
-    "Calculated operating points retain their source coordinates: A/D at 83.7 °C "
-    "and B/C at 84.3 °C."
+    "phase matching ($T\\approx75.59~^\\circ$C for the reference Sellmeier model). "
+    "Operating markers: NL1 in A/B and NL in C/D at 83.7 °C; NL2 in A/B at 84.7 °C "
+    "(Lemos et al., 2014 / adopted NL1 reference for single-crystal C/D)."
 )
 
 CAPTION_PANEL_CD_NOTE = (

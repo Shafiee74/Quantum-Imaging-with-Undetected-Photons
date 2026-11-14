@@ -11,12 +11,16 @@ Validated or verified digital-twin status is **not claimed** for Version 3.4.2.
 
 ### Registered configurations
 
+Manuscript / code convention (authoritative; see `SETUP_PROFILE_NAME_ALIASES` in `setup_params.py` and `verification/configuration_identity.py`):
+
 | Profile | Architecture | Imaging | Object |
 |---|---|---|---|
 | A | two crystal (NL1, NL2) | far field | transmissive, single pass |
-| B | single crystal, double pass | near field | reflective |
+| B | two crystal (NL1 → relay → object → NL2) | near field | transmissive, single pass |
 | C | single crystal, double pass | far field | reflective |
-| D | two crystal (NL1 → relay → object → NL2) | near field | transmissive, single pass |
+| D | single crystal, double pass | near field | reflective |
+
+**Legacy letter note:** Pre-2026-10-19 evidence archives used swapped letters for the near-field profiles (`legacy B` ↔ manuscript `D`, `legacy D` ↔ manuscript `B`). Physical YAML registry names were never swapped. Use `verification.configuration_identity` helpers when reading frozen legacy CSVs; do not reorder numerical arrays by letter alone.
 
 ### Source of truth and build
 
@@ -48,7 +52,7 @@ edited by hand (the file name is historical; the package is not a digital twin).
 ```bash
 python build_single_file.py --check                       # single file == clean rebuild
 python -m verification.parity                             # modular vs single-file parity, A/B/C/D
-python -m verification.config_d_checks                    # independent equation-based D physics checks
+python -m verification.config_d_checks                    # two-crystal near-field checks (historical name; manuscript B / legacy D)
 python parameter_inventory_audit.py                       # trace parameter consumption per profile (slow)
 python build_parameter_spec.py                            # regenerate parameter inventory JSON
 python -B -m pytest tests -q -p no:cacheprovider          # complete test suite

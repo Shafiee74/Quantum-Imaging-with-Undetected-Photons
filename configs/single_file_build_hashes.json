@@ -1,7 +1,7 @@
 {
   "finding": "single_file_distribution_P0",
   "algorithm": "sha256",
-  "release_version": "3.4.1",
+  "release_version": "3.4.2",
   "newline_normalization": "lf",
   "modules": [
     "setup_params",
@@ -16,23 +16,23 @@
     "latents.py": "7ca5714c66aeb2f310fbb1c41968ef1eccd99085e56674109750d88f9027a1c5",
     "optics.py": "bd89fe2e30eea3669bbd06afc2cd2d48b00c1a902ad1057c9dff295793e1fb43",
     "detector.py": "c2f0acf9fafd77095082bd3870bc6ba37b8b4607c89ec911b1ae664fa2214b5d",
-    "provenance.py": "5e8c0d110f6855a409d5750076e522f2833b63787302ba3a506c2c44ab9a0404",
+    "provenance.py": "47b56aa1512d731cbeee9e9951058370f6a61148db3a2088c7b8d1ee08576381",
     "simulate.py": "e7c5a8c5482dbc8f2df55700b8999b972759cf1c44ca8fd62482c70e67064e64",
     "build_single_file.py": "24fcf84f30ba9bfee01f99ce33ada1a52191aa1a68e2221d1e98150efb29b9a9",
-    "qiup_digital_twin_full.py": "d5889f7c414d170f9492a51d75bdf0218e345e7367f0db9babdc8efefdb0f2b1"
+    "qiup_digital_twin_full.py": "ae4c3a490f5a87a01c1d50ac4b1bd3c91a3f8623c57ce7462f2e014754779167"
   },
   "module_files": {
     "setup_params.py": "391ecd1767b07495d8a13160b2e76e4e0c418865fc24c43e286f5a6717cfb93b",
     "latents.py": "7ca5714c66aeb2f310fbb1c41968ef1eccd99085e56674109750d88f9027a1c5",
     "optics.py": "bd89fe2e30eea3669bbd06afc2cd2d48b00c1a902ad1057c9dff295793e1fb43",
     "detector.py": "c2f0acf9fafd77095082bd3870bc6ba37b8b4607c89ec911b1ae664fa2214b5d",
-    "provenance.py": "5e8c0d110f6855a409d5750076e522f2833b63787302ba3a506c2c44ab9a0404",
+    "provenance.py": "47b56aa1512d731cbeee9e9951058370f6a61148db3a2088c7b8d1ee08576381",
     "simulate.py": "e7c5a8c5482dbc8f2df55700b8999b972759cf1c44ca8fd62482c70e67064e64"
   },
   "build_script": "build_single_file.py",
   "build_script_sha256": "24fcf84f30ba9bfee01f99ce33ada1a52191aa1a68e2221d1e98150efb29b9a9",
   "generated_file": "qiup_digital_twin_full.py",
-  "generated_file_sha256": "d5889f7c414d170f9492a51d75bdf0218e345e7367f0db9babdc8efefdb0f2b1",
-  "generated_line_count": 18922,
+  "generated_file_sha256": "ae4c3a490f5a87a01c1d50ac4b1bd3c91a3f8623c57ce7462f2e014754779167",
+  "generated_line_count": 18923,
   "note": "Hand-editing qiup_digital_twin_full.py is prohibited. Edit modular sources, then run: python build_single_file.py. Hashes are calculated/stored via provenance.compute_single_file_build_hashes."
 }
