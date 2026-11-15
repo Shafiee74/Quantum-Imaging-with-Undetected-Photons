@@ -67,8 +67,8 @@ Historical inventory filenames such as `configs/PARAMETER_INVENTORY_3.4.1.md` re
 
 ## 6. Remaining reproducibility limitations (accurate)
 
-1. **Private EMCCD datasets** for Figures 5–6 are intentionally not published; full independent experimental replot requires laboratory access.
-2. `tools/figure6a_experimental_fringe_center_correction.py` regenerates experimental frequencies only when the local TIFF tree is present; it does not fabricate numbers.
+1. Original experimental EMCCD TIFF images for Figures 5–6 are not publicly available; derived measurements are in the public repository.
+2. Figure 6(a) public path computes simulation independently (`--compute`) and validates read-only (`--verify`); no manuscript-value overwrite.
 3. Package remains a **prototype / pre-validation** simulator — not an experimentally calibrated digital twin.
 4. Regenerable `evidence/` outputs and optional UI `node_modules` are excluded from the public hash-critical surface as documented in `verify_sha256_manifest.py`.
 

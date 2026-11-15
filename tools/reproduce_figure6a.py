@@ -1,18 +1,25 @@
 #!/usr/bin/env python3
-"""Reproduce manuscript Figure 6(a) from production optics.py.
+"""Figure 6(a) independent computation, plotting, and validation.
 
-Public mode (default for clean checkouts)::
+Scientific integrity rule
+-------------------------
+Simulation frequencies are always computed from the production model
+(``optics.py`` + ``C_lab`` → simulated I_minus images → 20% prominence
+bright-crest spacing, with the 20 µm point from the analytical phase
+gradient). Reference CSV/JSON under ``reproducibility/figure6a/reference/``
+are validation targets only and are **never** written into the plotted
+simulation series.
 
-    python tools/reproduce_figure6a.py --public
+Public experimental frequency markers use the shipped derived Table S3
+record (not raw EMCCD TIFFs). Re-extraction from private TIFFs is a separate
+laboratory mode.
 
-Uses shipped derived experimental frequencies under
-``reproducibility/figure6a/`` and regenerates simulation panels. Raw EMCCD
-TIFFs are not required. The analytical 20 µm simulation point is drawn as a
-hollow circle; image-derived simulation points remain filled squares.
+Commands::
 
-Laboratory mode (private TIFF root + optional archive baseline)::
-
-    python tools/reproduce_figure6a.py --laboratory
+    python tools/reproduce_figure6a.py --compute   # model → computed CSV → figure
+    python tools/reproduce_figure6a.py --verify     # compare computed vs reference
+    python tools/reproduce_figure6a.py --public     # compute then verify
+    python tools/reproduce_figure6a.py --laboratory # private TIFF image strip
 """
 from __future__ import annotations
 
@@ -21,7 +28,6 @@ import csv
 import hashlib
 import json
 import math
-import shutil
 import sys
 from pathlib import Path
 from typing import Any
@@ -39,16 +45,14 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import optics
-from setup_params import internal_camera_sampling_pixel_um, resolve_setup_selection
+from setup_params import resolve_setup_selection
 from tools.c_lab_figure6_lens_displacement_validation import TRANS_DX_UM, X0_MM, group_tiffs
 from tools.c_lab_isolated_pilot import DeltaKCalibrationState
-from tools.c_lab_l2_ms1_mi1_calculated_dk0_rabbit_images import N
 from tools.figure6a_simulated_fringe_frequency_correction import bright_crests
 from tools.generate_c_lab_figure6a_manuscript import (
     EXP_ROOT,
     mean_stack_deduped,
     run_theory_iminus,
-    write_audit_csv,
 )
 from tools.publication_graphics_style import (
     REFERENCE_GOLD,
@@ -57,24 +61,25 @@ from tools.publication_graphics_style import (
     style_reference_axes,
 )
 
-ART = ROOT / "article figures"
-PUBLIC_PKG = ROOT / "reproducibility" / "figure6a"
-PUBLIC_OUT = PUBLIC_PKG / "out"
-PUBLIC_EXP_CSV = PUBLIC_PKG / "Experimental_Frequency_Comparison.csv"
-ARCHIVE = ROOT / "archive" / "figure6a_pre_transverse_integration"
-BASELINE = ARCHIVE / "baseline_phase_and_dx0.npz"
-LAB_EXP_CSV = ROOT / "Figure6a_Experimental_Fringe_Center_Correction" / "Experimental_Frequency_Comparison.csv"
-LAMBDA_S_UM = 810.0 * 1.0e-3
-F_C_UM = 150.0 * 1.0e3
-REL_PROM = 0.20
-PUBLISHED = {
-    0.0: (0.0, 0.0),
-    20.0: (0.329218, 0.429938),
-    30.0: (0.584966, 0.549472),
-    40.0: (0.722282, 0.785464),
-    60.0: (1.005530, 0.968635),
-    180.0: (2.970003, 3.043022),
-}
+PKG = ROOT / "reproducibility" / "figure6a"
+REF_DIR = PKG / "reference"
+COMPUTED_DIR = PKG / "computed"
+OUT_DIR = PKG / "out"
+REF_EXP_CSV = REF_DIR / "Experimental_Frequency_Comparison.csv"
+REF_FINAL_CSV = REF_DIR / "Figure6a_Final_Data.csv"
+COMPUTED_CSV = COMPUTED_DIR / "Figure6a_Computed_Data.csv"
+COMPUTED_SUMMARY = COMPUTED_DIR / "Figure6a_Computed_Summary.json"
+VALIDATION_JSON = OUT_DIR / "Figure6a_Validation_Report.json"
+VALIDATION_MD = OUT_DIR / "Figure6a_Validation_Report.md"
+
+REL_PROM = 0.20  # uniform 20% relative prominence for simulated image frequencies
+# Predetermined verification tolerances (versioned).
+TOL_ABS_CYCLES_PER_MM = 5.0e-6
+TOL_CENTER_COUNT_EXACT = True
+EXPECTED_MAE_IMG = 0.05215
+EXPECTED_RMSE_IMG = 0.05465
+TOL_MAE_RMSE = 5.0e-4
+
 CAPTION = (
     "Figure 6(a). Simulated and experimental transverse interference patterns "
     "obtained at idler-lens displacements of 0, 20, 30, 40, 60, and 180 µm. "
@@ -88,27 +93,6 @@ CAPTION = (
     "represents the aligned-reference convention. All remaining nonzero frequencies "
     "are extracted directly from simulated or experimental intensity distributions."
 )
-UNTOUCHED = [
-    "Figure3_Final_Revision/Fig 3a_Final.png",
-    "Figure3_Final_Revision/Fig 3a_Final.pdf",
-    "Figure3_Final_Revision/Fig 3b_Final.png",
-    "Figure3_Final_Revision/Fig 3b_Final.pdf",
-    "Figure3_Final_Revision/Fig 3c_Final.png",
-    "Figure3_Final_Revision/Fig 3c_Final.pdf",
-    "Figure3_Final_Revision/Fig 3d_Final.png",
-    "Figure3_Final_Revision/Fig 3d_Final.pdf",
-    "Figure3_Final_Revision/Fig 3e_Final.png",
-    "Figure3_Final_Revision/Fig 3e_Final.pdf",
-    "Figure4_Final_Scientific_Audit.md",
-    "Figure5a_Final.png",
-    "Figure5a_Final.pdf",
-    "Figure5b_Final.png",
-    "Figure5b_Final.pdf",
-    "Figure6b_Final.png",
-    "Figure6b_Final.pdf",
-    "Figure6b_Final_Data.csv",
-    "Figure6b_Final_Report.md",
-]
 
 
 def sha256(path: Path) -> str:
@@ -120,6 +104,7 @@ def sha256(path: Path) -> str:
 
 
 def analytical_kappa_per_mm(dx_um: float, setup) -> float:
+    """κ_tr = 2|Δx_ℓ|/(λ_s f_c) in cycles/mm (manuscript transverse law)."""
     if dx_um == 0.0:
         return 0.0
     lam_um = float(setup.lambda_s_nm) * 1.0e-3
@@ -127,74 +112,211 @@ def analytical_kappa_per_mm(dx_um: float, setup) -> float:
     return 2.0 * abs(dx_um) / (lam_um * f_um) * 1.0e3
 
 
-def central_slope(phase: np.ndarray, pixel_um: float) -> float:
-    n = phase.shape[0]
-    x = (np.arange(n) - (n - 1) * 0.5) * pixel_um
-    return float(np.polyfit(x, phase[n // 2], 1)[0])
-
-
 def require_production_source() -> None:
     source = (ROOT / "optics.py").read_text(encoding="utf-8")
     if "4.0 * np.pi * ramp / (lam_s_um * f_c_um)" not in source:
-        raise RuntimeError("production optics.py does not contain the corrected transverse term")
+        raise RuntimeError("production optics.py lacks the corrected transverse phase term")
     if optics.idler_lens_misalignment_phase_map is None:
         raise RuntimeError("production phase function is missing")
 
 
-def regression_phase() -> dict[str, Any]:
-    if not BASELINE.is_file():
+def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fields: list[str] = []
+    for row in rows:
+        for key in row:
+            if key not in fields:
+                fields.append(key)
+    with path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def load_csv(path: Path) -> list[dict[str, str]]:
+    with path.open(encoding="utf-8", newline="") as fh:
+        return list(csv.DictReader(fh))
+
+
+def load_exp_derived(path: Path = REF_EXP_CSV) -> dict[float, dict[str, str]]:
+    if not path.is_file():
         raise FileNotFoundError(
-            f"Missing laboratory baseline archive: {BASELINE}\n"
-            "Public mode does not require this file."
+            f"Derived experimental frequency record not found: {path}\n"
+            "This file is a public Table S3 analysis record, not a simulation substitute."
         )
-    base = np.load(BASELINE)
-    report: dict[str, Any] = {}
-    same = {
-        "C_lab_dx0_dz80": ("C_lab", 0.0, 80.0),
-        "A_dx40_dz0": ("A", 40.0, 0.0),
-        "B_dx40_dz0": ("B", 40.0, 0.0),
-        "D_dx40_dz0": ("D", 40.0, 0.0),
+    return {float(r["lens_displacement_um"]): r for r in load_csv(path)}
+
+
+# ---------------------------------------------------------------------------
+# Computation module — physical model only
+# ---------------------------------------------------------------------------
+def compute_simulation_rows(theory: dict[float, np.ndarray], setup) -> list[dict[str, Any]]:
+    """Independently extract simulated frequencies from newly generated images."""
+    rows: list[dict[str, Any]] = []
+    for dx in TRANS_DX_UM:
+        dx = float(dx)
+        det = bright_crests(theory[dx], dx, rel_prom_min=REL_PROM)
+        n_centers = len(det["centers"])
+        image_k = float(det["k"]) if n_centers >= 2 else float("nan")
+        analytical = analytical_kappa_per_mm(dx, setup)
+        if dx == 0.0:
+            plotted, source = 0.0, "aligned_reference_convention"
+        elif n_centers < 2:
+            # Manuscript: at 20 µm only one broad maximum → analytical κ_tr.
+            plotted, source = analytical, "analytical_phase_gradient"
+        else:
+            plotted, source = image_k, "image_center_spacing_20_percent"
+        rows.append(
+            {
+                "dx_um": dx,
+                "simulation_n_centers": n_centers,
+                "simulation_image_derived_cycles_per_mm": image_k,
+                "simulation_analytical_cycles_per_mm": analytical,
+                "simulation_plotted_cycles_per_mm": float(plotted),
+                "simulation_frequency_source": source,
+                "simulation_mean_spacing_mm": det["mean_spacing_mm"],
+            }
+        )
+    return rows
+
+
+def attach_experimental_derived(
+    sim_rows: list[dict[str, Any]],
+    exp_csv: dict[float, dict[str, str]],
+) -> list[dict[str, Any]]:
+    """Attach public derived experimental frequencies for plotting/MAE only."""
+    out: list[dict[str, Any]] = []
+    for row in sim_rows:
+        dx = float(row["dx_um"])
+        er = exp_csv[dx]
+        exp_text = er.get("corrected_periodic_frequency_cycles_per_mm", "")
+        exp_k = float(exp_text) if exp_text not in ("", "nan") else float("nan")
+        plotted_exp = 0.0 if dx == 0.0 else exp_k
+        out.append(
+            {
+                **row,
+                "experiment_n_centers": int(float(er.get("corrected_n_centers", 0) or 0)),
+                "experiment_plotted_cycles_per_mm": plotted_exp,
+                "experiment_frequency_source": (
+                    "aligned_reference_convention"
+                    if dx == 0.0
+                    else "derived_table_S3_public_record"
+                ),
+            }
+        )
+    return out
+
+
+def run_compute(*, include_exp_images: bool = False) -> dict[str, Any]:
+    """Execute model → write computed CSV → draw figure from computed rows only."""
+    require_production_source()
+    COMPUTED_DIR.mkdir(parents=True, exist_ok=True)
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    setup = resolve_setup_selection("C_lab")
+    dk = DeltaKCalibrationState(mode="theory")
+    theory = {float(dx): run_theory_iminus(setup, dk, dx_um=float(dx)) for dx in TRANS_DX_UM}
+    sim_rows = compute_simulation_rows(theory, setup)
+    exp_csv = load_exp_derived(REF_EXP_CSV)
+    rows = attach_experimental_derived(sim_rows, exp_csv)
+
+    exp_images: dict[float, np.ndarray] | None = None
+    if include_exp_images:
+        if not EXP_ROOT.is_dir():
+            raise FileNotFoundError(
+                f"Laboratory EMCCD root not found: {EXP_ROOT}\n"
+                "Omit --laboratory / use --compute for the public numerical path."
+            )
+        groups = group_tiffs(EXP_ROOT, ref_mm=X0_MM, rel_scale=1000.0)
+        exp_images = {}
+        for dx in TRANS_DX_UM:
+            key = round(float(dx), 6)
+            exp_images[float(dx)], _ = mean_stack_deduped(groups[key])
+
+    write_csv(COMPUTED_CSV, rows)
+    sim_k = [float(r["simulation_plotted_cycles_per_mm"]) for r in rows]
+    exp_k = [float(r["experiment_plotted_cycles_per_mm"]) for r in rows]
+    sources = [str(r["simulation_frequency_source"]) for r in rows]
+    png = OUT_DIR / "Figure6a_Final.png"
+    pdf = OUT_DIR / "Figure6a_Final.pdf"
+    draw(theory, exp_images, sim_k, exp_k, sources, png, pdf, public=exp_images is None)
+
+    img_sim = [
+        float(r["simulation_plotted_cycles_per_mm"])
+        for r in rows
+        if float(r["dx_um"]) > 0 and r["simulation_frequency_source"] != "analytical_phase_gradient"
+    ]
+    img_exp = [
+        float(r["experiment_plotted_cycles_per_mm"])
+        for r in rows
+        if float(r["dx_um"]) > 0 and r["simulation_frequency_source"] != "analytical_phase_gradient"
+    ]
+    mae, rmse = mae_rmse(img_sim, img_exp)
+
+    summary = {
+        "stage": "compute",
+        "model": {
+            "transverse_phase": "Phi_tr = [4*pi/(lambda_s*f_c)]*(dx*x + dy*y)",
+            "analytical_frequency": "kappa_tr = 2*|dx|/(lambda_s*f_c)  [cycles/mm]",
+            "lambda_s_nm": float(setup.lambda_s_nm),
+            "f_c_mm": float(setup.F2_mm),
+            "simulation_prominence": REL_PROM,
+            "setup_id": setup.setup_id,
+            "optics_sha256": sha256(ROOT / "optics.py"),
+        },
+        "outputs": {
+            "computed_csv": str(COMPUTED_CSV),
+            "png": str(png),
+            "pdf": str(pdf),
+        },
+        "computed_simulation": [
+            {
+                "dx_um": float(r["dx_um"]),
+                "n_centers": int(r["simulation_n_centers"]),
+                "plotted_cycles_per_mm": float(r["simulation_plotted_cycles_per_mm"]),
+                "source": r["simulation_frequency_source"],
+            }
+            for r in rows
+        ],
+        "mae_vs_derived_experiment_image_points": mae,
+        "rmse_vs_derived_experiment_image_points": rmse,
+        "dx0_mean": float(np.mean(theory[0.0])),
+        "note": (
+            "Simulation values are independently computed. "
+            "Experimental frequency markers are derived Table S3 public records. "
+            "Reference Final_Data.csv was not used as a computational substitute."
+        ),
     }
-    for key, (name, dx, dz) in same.items():
-        setup = resolve_setup_selection(name).overridden(
-            enable_lens_rings=True, lens_shift_x_um=dx, lens_shift_y_um=0.0, delta_z_um=dz
-        )
-        phase = optics.idler_lens_misalignment_phase_map(N, setup, delta_z_um=dz)["phase_rad"]
-        delta = float(np.max(np.abs(np.asarray(phase) - base[key])))
-        report[key] = {"max_abs_difference_rad": delta, "unchanged": delta == 0.0}
-        if delta != 0.0:
-            raise RuntimeError(f"{key} changed by {delta} rad")
-
-    changed = {}
-    for key, name, dx, dz in (
-        ("C_lab_dx40_dz0", "C_lab", 40.0, 0.0),
-        ("C_dx40_dz0", "C", 40.0, 0.0),
-    ):
-        setup = resolve_setup_selection(name).overridden(
-            enable_lens_rings=True, lens_shift_x_um=dx, lens_shift_y_um=0.0, delta_z_um=dz
-        )
-        state = optics.idler_lens_misalignment_phase_map(N, setup, delta_z_um=dz)
-        phase = np.asarray(state["phase_rad"])
-        pixel = float(internal_camera_sampling_pixel_um(setup))
-        slope = central_slope(phase, pixel)
-        expected = 4.0 * np.pi * dx / (float(setup.lambda_s_nm) * 1.0e-3 * float(setup.F2_mm) * 1.0e3)
-        if abs(slope - expected) > 1.0e-12:
-            raise RuntimeError(f"{name} slope {slope} != {expected}")
-        if state["pass_factor_multiplies_transverse"]:
-            raise RuntimeError(f"{name} still multiplies the transverse term by pass_factor")
-        if np.allclose(phase, base[key]):
-            raise RuntimeError(f"{name} transverse phase did not change")
-        changed[key] = {
-            "slope_rad_per_um": slope,
-            "analytical_slope_rad_per_um": expected,
-            "max_abs_difference_from_previous_rad": float(np.max(np.abs(phase - base[key]))),
-        }
-    report["corrected_single_crystal_far_field"] = changed
-    report["lambda_s_um"] = LAMBDA_S_UM
-    report["f_c_um"] = F_C_UM
-    return report
+    COMPUTED_SUMMARY.write_text(json.dumps(summary, indent=2, default=str), encoding="utf-8")
+    (OUT_DIR / "Figure6a_Updated_Caption_and_Text.md").write_text(CAPTION + "\n", encoding="utf-8")
+    (OUT_DIR / "Figure6a_Final_Report.md").write_text(
+        "\n".join(
+            [
+                "# Figure 6(a) — independently computed",
+                "",
+                "Command: `python tools/reproduce_figure6a.py --compute`",
+                "",
+                f"MAE vs derived experiment (30/40/60/180 µm) = {mae:.5f} cycles/mm",
+                f"RMSE = {rmse:.5f} cycles/mm",
+                "",
+                "Simulation sources: " + ", ".join(sources),
+                "",
+                CAPTION,
+                "",
+                summary["note"],
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    # Convenience copy for readers expecting Final_Data next to the figure.
+    write_csv(OUT_DIR / "Figure6a_Final_Data.csv", rows)
+    return summary
 
 
+# ---------------------------------------------------------------------------
+# Visualization module
+# ---------------------------------------------------------------------------
 def draw(
     theory: dict[float, np.ndarray],
     exp: dict[float, np.ndarray] | None,
@@ -206,7 +328,6 @@ def draw(
     *,
     public: bool,
 ) -> None:
-    """Draw Figure 6(a) with a hollow circle at the analytical 20 µm sim point."""
     apply_publication_graphics_style()
     dx_list = [float(d) for d in TRANS_DX_UM]
     w_in = 180.0 / 25.4
@@ -217,10 +338,7 @@ def draw(
     )
     gs_plot = GridSpec(1, 1, left=0.145, right=0.995, top=0.435, bottom=0.105)
     t_v = max(float(np.percentile(theory[d], 99.5)) for d in dx_list)
-    if exp is not None:
-        e_v = max(float(np.percentile(exp[d], 99.5)) for d in dx_list)
-    else:
-        e_v = 1.0
+    e_v = max(float(np.percentile(exp[d], 99.5)) for d in dx_list) if exp is not None else 1.0
     for j, dx in enumerate(dx_list):
         ax = fig.add_subplot(gs_img[0, j])
         ax.imshow(theory[dx], cmap="gray", origin="upper", vmin=0, vmax=t_v, aspect="equal")
@@ -235,54 +353,49 @@ def draw(
         else:
             ax.set_facecolor("0.92")
             ax.text(
-                0.5, 0.5, "EMCCD\nrestricted", transform=ax.transAxes,
+                0.5, 0.5, "EMCCD\nnot public", transform=ax.transAxes,
                 ha="center", va="center", fontsize=7, color="0.35",
             )
         ax.set_xticks([])
         ax.set_yticks([])
         if j == 0:
-            label = "Experimental" if exp is not None else "Experimental\n(restricted)"
+            label = "Experimental" if exp is not None else "Experimental\n(not public)"
             ax.text(-0.24, 0.5, label, transform=ax.transAxes, va="center", ha="right", fontsize=9)
 
     axp = fig.add_subplot(gs_plot[0, 0])
-    # Image-derived / aligned simulation points: filled squares.
     dx_sq = [d for d, src in zip(dx_list, sources) if src != "analytical_phase_gradient"]
     sim_sq = [k for k, src in zip(sim_k, sources) if src != "analytical_phase_gradient"]
-    axp.plot(
-        dx_list, sim_k, linestyle="--", color=REFERENCE_TEAL,
-        linewidth=1.35, zorder=2,
-    )
+    axp.plot(dx_list, sim_k, linestyle="--", color=REFERENCE_TEAL, linewidth=1.35, zorder=2)
     axp.plot(
         dx_sq, sim_sq, linestyle="None", marker="s", color=REFERENCE_TEAL,
         markersize=6, markeredgecolor="0.25", markeredgewidth=0.6, zorder=3,
-        label="Simulation (image-derived)",
     )
-    # Analytical 20 µm point: distinct hollow circle (manuscript convention).
     dx_an = [d for d, src in zip(dx_list, sources) if src == "analytical_phase_gradient"]
     sim_an = [k for k, src in zip(sim_k, sources) if src == "analytical_phase_gradient"]
     if dx_an:
         axp.plot(
             dx_an, sim_an, linestyle="None", marker="o", markersize=8,
-            markerfacecolor="none", markeredgecolor=REFERENCE_TEAL, markeredgewidth=1.4,
-            zorder=4, label="Simulation (analytical 20 µm)",
+            markerfacecolor="none", markeredgecolor=REFERENCE_TEAL, markeredgewidth=1.4, zorder=4,
         )
     axp.plot(
         dx_list, exp_k, marker="D", linestyle=(0, (2.5, 2.0, 6.0, 2.0)), color=REFERENCE_GOLD,
-        label="Experimental", markersize=6, markeredgecolor="0.25", markeredgewidth=0.6,
-        linewidth=1.35, zorder=3,
+        markersize=6, markeredgecolor="0.25", markeredgewidth=0.6, linewidth=1.35, zorder=3,
     )
     axp.set_xlabel("Transverse idler-lens displacement, Δx (µm)", labelpad=4)
     axp.set_ylabel("Spatial frequency (cycles mm$^{-1}$)", labelpad=6)
     axp.set_xticks(dx_list)
-    handles = [
-        Line2D([0], [0], color=REFERENCE_TEAL, lw=1.35, ls="--", marker="s",
-               markersize=6, markeredgecolor="0.25", label="Simulation (image-derived)"),
-        Line2D([0], [0], color=REFERENCE_TEAL, lw=0, marker="o", markersize=8,
-               markerfacecolor="none", markeredgewidth=1.4, label="Simulation (analytical 20 µm)"),
-        Line2D([0], [0], color=REFERENCE_GOLD, lw=1.35, ls=(0, (2.5, 2.0, 6.0, 2.0)),
-               marker="D", markersize=6, markeredgecolor="0.25", label="Experimental"),
-    ]
-    axp.legend(handles=handles, frameon=False, loc="upper left")
+    axp.legend(
+        handles=[
+            Line2D([0], [0], color=REFERENCE_TEAL, lw=1.35, ls="--", marker="s",
+                   markersize=6, markeredgecolor="0.25", label="Simulation (image-derived)"),
+            Line2D([0], [0], color=REFERENCE_TEAL, lw=0, marker="o", markersize=8,
+                   markerfacecolor="none", markeredgewidth=1.4, label="Simulation (analytical 20 µm)"),
+            Line2D([0], [0], color=REFERENCE_GOLD, lw=1.35, ls=(0, (2.5, 2.0, 6.0, 2.0)),
+                   marker="D", markersize=6, markeredgecolor="0.25", label="Experimental (derived)"),
+        ],
+        frameon=False,
+        loc="upper left",
+    )
     style_reference_axes(axp)
     finite = [v for v in sim_k + exp_k if math.isfinite(float(v))]
     axp.set_ylim(0.0, max(finite) * 1.12)
@@ -290,8 +403,8 @@ def draw(
     if public:
         fig.text(
             0.01, 0.01,
-            "Public checkout: experimental image strip omitted (EMCCD restricted); "
-            "frequency markers use shipped derived CSV.",
+            "Simulation: independently computed. Experimental frequencies: derived Table S3 record. "
+            "Original EMCCD TIFFs are not publicly available.",
             fontsize=6.5, color="0.35",
         )
     fig.savefig(pdf, bbox_inches="tight", pad_inches=0.06)
@@ -299,294 +412,180 @@ def draw(
     plt.close(fig)
 
 
-def write_table(path: Path, rows: list[dict[str, Any]]) -> None:
-    fields: list[str] = []
-    for row in rows:
-        for key in row:
-            if key not in fields:
-                fields.append(key)
-    with path.open("w", encoding="utf-8", newline="") as fh:
-        writer = csv.DictWriter(fh, fieldnames=fields)
-        writer.writeheader()
-        writer.writerows(rows)
-
-
-def load_exp_csv(path: Path) -> dict[float, dict[str, str]]:
-    if not path.is_file():
-        raise FileNotFoundError(
-            f"Missing experimental frequency CSV: {path}\n"
-            "Public mode expects reproducibility/figure6a/Experimental_Frequency_Comparison.csv"
-        )
-    with path.open(encoding="utf-8", newline="") as fh:
-        return {float(r["lens_displacement_um"]): r for r in csv.DictReader(fh)}
-
-
-def build_rows(
-    theory: dict[float, np.ndarray],
-    setup,
-    exp_csv: dict[float, dict[str, str]],
-    *,
-    enforce_published: bool,
-) -> tuple[list[dict[str, Any]], list[float], list[float], list[str]]:
-    table: list[dict[str, Any]] = []
-    sim_plotted: list[float] = []
-    exp_plotted: list[float] = []
-    sources: list[str] = []
-    for dx in TRANS_DX_UM:
-        dx = float(dx)
-        det = bright_crests(theory[dx], dx, rel_prom_min=REL_PROM)
-        image_k = float(det["k"]) if len(det["centers"]) >= 2 else float("nan")
-        analytical = analytical_kappa_per_mm(dx, setup)
-        if dx == 0.0:
-            plotted_sim, source = 0.0, "aligned_reference_convention"
-        elif len(det["centers"]) < 2 or dx == 20.0:
-            # Manuscript rule: 20 µm uses analytical gradient (one bright center).
-            plotted_sim, source = analytical, "analytical_phase_gradient"
-        else:
-            plotted_sim, source = image_k, "image_center_spacing_20_percent"
-
-        exp_row = exp_csv[dx]
-        exp_text = exp_row["corrected_periodic_frequency_cycles_per_mm"]
-        exp_measured = float(exp_text) if exp_text not in ("", "nan") else float("nan")
-        plotted_exp = 0.0 if dx == 0.0 else exp_measured
-        exp_source = "aligned_reference_convention" if dx == 0.0 else "image_center_spacing"
-        published_sim, published_exp = PUBLISHED[dx]
-        if enforce_published:
-            # Public mode locks the frequency panel to the submitted numbers.
-            plotted_sim, plotted_exp = published_sim, published_exp
-            if dx == 20.0:
-                source = "analytical_phase_gradient"
-            elif dx == 0.0:
-                source = "aligned_reference_convention"
-            else:
-                source = "image_center_spacing_20_percent"
-        elif round(plotted_sim, 6) != published_sim or round(plotted_exp, 6) != published_exp:
-            raise RuntimeError(
-                f"Δx={dx}: plotted {(plotted_sim, plotted_exp)} != published {(published_sim, published_exp)}"
-            )
-
-        sim_plotted.append(float(plotted_sim))
-        exp_plotted.append(float(plotted_exp))
-        sources.append(source)
-        table.append(
-            {
-                "dx_um": dx,
-                "simulation_n_centers": len(det["centers"]),
-                "simulation_image_derived_cycles_per_mm": image_k,
-                "simulation_analytical_cycles_per_mm": analytical,
-                "simulation_plotted_cycles_per_mm": plotted_sim,
-                "simulation_frequency_source": source,
-                "simulation_mean_spacing_mm": det["mean_spacing_mm"],
-                "experiment_n_centers": int(float(exp_row.get("corrected_n_centers", 0) or 0)),
-                "experiment_image_derived_cycles_per_mm": exp_measured,
-                "experiment_plotted_cycles_per_mm": plotted_exp,
-                "experiment_frequency_source": exp_source,
-            }
-        )
-    return table, sim_plotted, exp_plotted, sources
-
-
 def mae_rmse(sim: list[float], exp: list[float]) -> tuple[float, float]:
     err = np.asarray(sim, float) - np.asarray(exp, float)
     return float(np.mean(np.abs(err))), float(np.sqrt(np.mean(err**2)))
 
 
-def run_public() -> dict[str, Any]:
-    require_production_source()
-    PUBLIC_OUT.mkdir(parents=True, exist_ok=True)
-    setup = resolve_setup_selection("C_lab")
-    dk = DeltaKCalibrationState(mode="theory")
-    theory = {float(dx): run_theory_iminus(setup, dk, dx_um=float(dx)) for dx in TRANS_DX_UM}
-    exp_csv = load_exp_csv(PUBLIC_EXP_CSV)
-    # Prefer live image-derived simulation frequencies when they match published;
-    # otherwise lock to the manuscript table for a clean public checkout.
-    table, sim_plotted, exp_plotted, sources = build_rows(
-        theory, setup, exp_csv, enforce_published=False
-    )
-    try:
-        for row in table:
-            dx = float(row["dx_um"])
-            ps, pe = PUBLISHED[dx]
-            if round(float(row["simulation_plotted_cycles_per_mm"]), 6) != ps:
-                raise RuntimeError("sim mismatch")
-            if round(float(row["experiment_plotted_cycles_per_mm"]), 6) != pe:
-                raise RuntimeError("exp mismatch")
-    except RuntimeError:
-        table, sim_plotted, exp_plotted, sources = build_rows(
-            theory, setup, exp_csv, enforce_published=True
-        )
-
-    png = PUBLIC_OUT / "Figure6a_Final.png"
-    pdf = PUBLIC_OUT / "Figure6a_Final.pdf"
-    draw(theory, None, sim_plotted, exp_plotted, sources, png, pdf, public=True)
-    write_table(PUBLIC_OUT / "Figure6a_Final_Data.csv", table)
-    nonzero_sim = [r["simulation_plotted_cycles_per_mm"] for r in table if float(r["dx_um"]) > 0]
-    nonzero_exp = [r["experiment_plotted_cycles_per_mm"] for r in table if float(r["dx_um"]) > 0]
-    mae_all, rmse_all = mae_rmse(nonzero_sim, nonzero_exp)
-    # Manuscript MAE/RMSE quote excludes the analytical 20 µm point.
-    img_sim = [
-        r["simulation_plotted_cycles_per_mm"]
-        for r in table
-        if float(r["dx_um"]) > 0 and r["simulation_frequency_source"] != "analytical_phase_gradient"
-    ]
-    img_exp = [
-        r["experiment_plotted_cycles_per_mm"]
-        for r in table
-        if float(r["dx_um"]) > 0 and r["simulation_frequency_source"] != "analytical_phase_gradient"
-    ]
-    mae, rmse = mae_rmse(img_sim, img_exp)
-    (PUBLIC_OUT / "Figure6a_Updated_Caption_and_Text.md").write_text(CAPTION + "\n", encoding="utf-8")
-    report = {
-        "mode": "public",
-        "mae_cycles_per_mm": mae,
-        "rmse_cycles_per_mm": rmse,
-        "mae_all_nonzero_including_analytical_20um": mae_all,
-        "rmse_all_nonzero_including_analytical_20um": rmse_all,
-        "mae_convention": "image_derived_nonzero_only_excludes_analytical_20um",
-        "sources": sources,
-        "plotted_sim": sim_plotted,
-        "plotted_exp": exp_plotted,
-        "png": str(png),
-        "pdf": str(pdf),
-        "dx0_mean": float(np.mean(theory[0.0])),
-        "optics_sha256": sha256(ROOT / "optics.py"),
-        "note": (
-            "Experimental image strip omitted: raw EMCCD TIFFs are restricted. "
-            "Frequency markers use reproducibility/figure6a derived CSV. "
-            "Hollow circle = analytical 20 µm simulation point."
-        ),
-    }
-    (PUBLIC_OUT / "Figure6a_Reproduction_Summary.json").write_text(
-        json.dumps(report, indent=2, default=str), encoding="utf-8"
-    )
-    (PUBLIC_OUT / "Figure6a_Final_Report.md").write_text(
-        "\n".join(
-            [
-                "# Figure 6(a) — public reproduction",
-                "",
-                "Command: `python tools/reproduce_figure6a.py --public`",
-                "",
-                f"MAE = {mae:.5f} cycles/mm; RMSE = {rmse:.5f} cycles/mm "
-                "(image-derived nonzero points; excludes analytical 20 µm).",
-                f"Including analytical 20 µm: MAE = {mae_all:.5f}; RMSE = {rmse_all:.5f}.",
-                "Analytical 20 µm simulation point uses a hollow circular marker.",
-                "",
-                CAPTION,
-                "",
-                report["note"],
-                "",
-            ]
-        ),
-        encoding="utf-8",
-    )
-    return report
-
-
-def run_laboratory() -> dict[str, Any]:
-    require_production_source()
-    before_untouched = {rel: sha256(ART / rel) for rel in UNTOUCHED if (ART / rel).is_file()}
-    phase_report = regression_phase()
-    setup = resolve_setup_selection("C_lab")
-    dk = DeltaKCalibrationState(mode="theory")
-    if not EXP_ROOT.is_dir():
+# ---------------------------------------------------------------------------
+# Validation module — reference files are read-only comparison evidence
+# ---------------------------------------------------------------------------
+def run_verify() -> dict[str, Any]:
+    if not COMPUTED_CSV.is_file():
         raise FileNotFoundError(
-            f"Laboratory EMCCD root not found: {EXP_ROOT}\n"
-            "Use --public for the non-restricted numerical workflow."
+            f"Missing computed results: {COMPUTED_CSV}\n"
+            "Run `python tools/reproduce_figure6a.py --compute` first."
         )
-    groups = group_tiffs(EXP_ROOT, ref_mm=X0_MM, rel_scale=1000.0)
-    theory: dict[float, np.ndarray] = {}
-    exp: dict[float, np.ndarray] = {}
-    audit: list[dict[str, Any]] = []
+    if not REF_FINAL_CSV.is_file():
+        raise FileNotFoundError(f"Missing validation reference: {REF_FINAL_CSV}")
+
+    computed = {float(r["dx_um"]): r for r in load_csv(COMPUTED_CSV)}
+    reference = {float(r["dx_um"]): r for r in load_csv(REF_FINAL_CSV)}
+    comparisons: list[dict[str, Any]] = []
+    failures: list[str] = []
+
     for dx in TRANS_DX_UM:
-        key = round(float(dx), 6)
-        image, file_audit = mean_stack_deduped(groups[key])
-        exp[float(dx)] = image
-        theory[float(dx)] = run_theory_iminus(setup, dk, dx_um=float(dx))
-        for item in file_audit:
-            audit.append({**item, "dx_um": float(dx)})
-
-    if BASELINE.is_file():
-        baseline_dx0 = np.load(BASELINE)["dx0_I_minus"]
-        dx0_delta = float(np.max(np.abs(theory[0.0] - baseline_dx0)))
-        if dx0_delta != 0.0:
-            raise RuntimeError(f"Δx = 0 image changed by max abs {dx0_delta}")
-    else:
-        dx0_delta = float("nan")
-
-    exp_csv = load_exp_csv(LAB_EXP_CSV if LAB_EXP_CSV.is_file() else PUBLIC_EXP_CSV)
-    table, sim_plotted, exp_plotted, sources = build_rows(
-        theory, setup, exp_csv, enforce_published=False
-    )
-    ART.mkdir(parents=True, exist_ok=True)
-    png = ART / "Figure6a_Final.png"
-    pdf = ART / "Figure6a_Final.pdf"
-    draw(theory, exp, sim_plotted, exp_plotted, sources, png, pdf, public=False)
-    if png.read_bytes()[:8] != b"\x89PNG\r\n\x1a\n":
-        raise RuntimeError("Figure6a_Final.png is not a PNG")
-    if not pdf.read_bytes().startswith(b"%PDF"):
-        raise RuntimeError("Figure6a_Final.pdf is not a PDF")
-    shutil.copy2(png, ART / "Figure6a.png")
-    shutil.copy2(pdf, ART / "Figure6a.pdf")
-    write_table(ART / "Figure6a_Final_Data.csv", table)
-    write_audit_csv(ART / "Figure6a_Experimental_File_Audit.csv", audit)
-    (ART / "Figure6a_Updated_Caption_and_Text.md").write_text(CAPTION + "\n", encoding="utf-8")
-    after_untouched = {rel: sha256(ART / rel) for rel in before_untouched}
-    if after_untouched != before_untouched:
-        raise RuntimeError(
-            f"untouched figures changed: {[k for k in before_untouched if before_untouched[k] != after_untouched[k]]}"
+        dx = float(dx)
+        c = computed[dx]
+        r = reference[dx]
+        c_k = float(c["simulation_plotted_cycles_per_mm"])
+        r_k = float(r["simulation_plotted_cycles_per_mm"])
+        abs_err = abs(c_k - r_k)
+        rel_err = abs_err / abs(r_k) if abs(r_k) > 1e-15 else (0.0 if abs_err == 0 else float("inf"))
+        c_n = int(float(c["simulation_n_centers"]))
+        r_n = int(float(r["simulation_n_centers"]))
+        ok_k = abs_err <= TOL_ABS_CYCLES_PER_MM
+        ok_n = (c_n == r_n) if TOL_CENTER_COUNT_EXACT else True
+        if not ok_k:
+            failures.append(
+                f"Δx={dx}: computed sim k={c_k:.9f} vs reference {r_k:.9f} "
+                f"(abs={abs_err:.3e} > tol {TOL_ABS_CYCLES_PER_MM})"
+            )
+        if not ok_n:
+            failures.append(f"Δx={dx}: computed centers={c_n} vs reference {r_n}")
+        comparisons.append(
+            {
+                "dx_um": dx,
+                "computed_simulation_cycles_per_mm": c_k,
+                "reference_simulation_cycles_per_mm": r_k,
+                "abs_error": abs_err,
+                "rel_error": rel_err,
+                "computed_n_centers": c_n,
+                "reference_n_centers": r_n,
+                "pass_frequency": ok_k,
+                "pass_centers": ok_n,
+                "computed_source": c.get("simulation_frequency_source", ""),
+                "reference_source": r.get("simulation_frequency_source", ""),
+            }
         )
-    nonzero_sim = [r["simulation_plotted_cycles_per_mm"] for r in table if float(r["dx_um"]) > 0]
-    nonzero_exp = [r["experiment_plotted_cycles_per_mm"] for r in table if float(r["dx_um"]) > 0]
-    mae, rmse = mae_rmse(nonzero_sim, nonzero_exp)
-    summary = {
-        "mode": "laboratory",
-        "phase_regression": phase_report,
-        "dx0_max_abs_difference": dx0_delta,
-        "dx0_mean": float(np.mean(theory[0.0])),
-        "mae_cycles_per_mm": mae,
-        "rmse_cycles_per_mm": rmse,
-        "table": table,
-        "sources": sources,
-        "untouched_figures_unchanged": True,
-        "png": str(png),
-        "pdf": str(pdf),
-        "optics_sha256": sha256(ROOT / "optics.py"),
-    }
-    (ART / "Figure6a_Reproduction_Summary.json").write_text(
-        json.dumps(summary, indent=2, default=str), encoding="utf-8"
+
+    img_dx = [30.0, 40.0, 60.0, 180.0]
+    mae, rmse = mae_rmse(
+        [float(computed[d]["simulation_plotted_cycles_per_mm"]) for d in img_dx],
+        [float(computed[d]["experiment_plotted_cycles_per_mm"]) for d in img_dx],
     )
-    return summary
+    mae_ok = abs(mae - EXPECTED_MAE_IMG) <= TOL_MAE_RMSE
+    rmse_ok = abs(rmse - EXPECTED_RMSE_IMG) <= TOL_MAE_RMSE
+    if not mae_ok:
+        failures.append(f"MAE={mae:.6f} vs expected≈{EXPECTED_MAE_IMG} (tol {TOL_MAE_RMSE})")
+    if not rmse_ok:
+        failures.append(f"RMSE={rmse:.6f} vs expected≈{EXPECTED_RMSE_IMG} (tol {TOL_MAE_RMSE})")
+
+    status = "PASS" if not failures else "FAIL"
+    report = {
+        "stage": "verify",
+        "status": status,
+        "tolerances": {
+            "abs_cycles_per_mm": TOL_ABS_CYCLES_PER_MM,
+            "center_count_exact": TOL_CENTER_COUNT_EXACT,
+            "mae_rmse_tol": TOL_MAE_RMSE,
+            "expected_mae": EXPECTED_MAE_IMG,
+            "expected_rmse": EXPECTED_RMSE_IMG,
+        },
+        "mae_image_derived": mae,
+        "rmse_image_derived": rmse,
+        "comparisons": comparisons,
+        "failures": failures,
+        "computed_csv": str(COMPUTED_CSV),
+        "reference_csv": str(REF_FINAL_CSV),
+        "max_abs_simulation_error": max(c["abs_error"] for c in comparisons),
+    }
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    VALIDATION_JSON.write_text(json.dumps(report, indent=2, default=str), encoding="utf-8")
+    lines = [
+        f"# Figure 6(a) validation — **{status}**",
+        "",
+        f"Computed: `{COMPUTED_CSV}`",
+        f"Reference (read-only): `{REF_FINAL_CSV}`",
+        "",
+        f"MAE (30/40/60/180) = {mae:.5f} (expected ≈ {EXPECTED_MAE_IMG})",
+        f"RMSE = {rmse:.5f} (expected ≈ {EXPECTED_RMSE_IMG})",
+        f"Max |Δk_sim| vs reference = {report['max_abs_simulation_error']:.3e}",
+        "",
+        "| Δx | computed k | reference k | abs err | centers c/r | pass |",
+        "|---:|---:|---:|---:|---|---|",
+    ]
+    for c in comparisons:
+        lines.append(
+            f"| {c['dx_um']:.0f} | {c['computed_simulation_cycles_per_mm']:.9f} | "
+            f"{c['reference_simulation_cycles_per_mm']:.9f} | {c['abs_error']:.3e} | "
+            f"{c['computed_n_centers']}/{c['reference_n_centers']} | "
+            f"{'PASS' if c['pass_frequency'] and c['pass_centers'] else 'FAIL'} |"
+        )
+    if failures:
+        lines += ["", "## Failures", ""] + [f"- {f}" for f in failures]
+    else:
+        lines += ["", "All predetermined tolerances satisfied. Simulation independently reproduced."]
+    VALIDATION_MD.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return report
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--mode",
-        choices=("public", "laboratory"),
-        default="public",
-        help="public = clean checkout without EMCCD (default); laboratory = private TIFF root.",
-    )
-    # Backward-compatible flags
-    parser.add_argument("--public", action="store_true", help=argparse.SUPPRESS)
-    parser.add_argument("--laboratory", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--compute", action="store_true", help="Independent model computation + figure")
+    parser.add_argument("--verify", action="store_true", help="Compare computed vs reference (no overwrite)")
+    parser.add_argument("--public", action="store_true", help="compute then verify (clean checkout)")
+    parser.add_argument("--laboratory", action="store_true", help="Also load private EMCCD image strip")
+    # Legacy aliases
+    parser.add_argument("--mode", choices=("public", "laboratory", "compute", "verify"), default=None)
     args = parser.parse_args(argv)
-    mode = "laboratory" if args.laboratory else ("public" if args.public else args.mode)
-    if mode == "laboratory":
-        report = run_laboratory()
-    else:
-        report = run_public()
-    print(json.dumps(
-        {
-            "mode": report.get("mode"),
-            "mae_cycles_per_mm": report.get("mae_cycles_per_mm"),
-            "rmse_cycles_per_mm": report.get("rmse_cycles_per_mm"),
-            "sources": report.get("sources"),
-            "plotted_sim": report.get("plotted_sim") or [r["simulation_plotted_cycles_per_mm"] for r in report.get("table", [])],
-            "png": report.get("png"),
-        },
-        indent=2,
-    ))
-    return 0
+
+    mode = None
+    if args.laboratory or args.mode == "laboratory":
+        mode = "laboratory"
+    elif args.verify or args.mode == "verify":
+        mode = "verify"
+    elif args.compute or args.mode == "compute":
+        mode = "compute"
+    elif args.public or args.mode == "public" or (
+        not args.compute and not args.verify and not args.laboratory and args.mode is None
+    ):
+        mode = "public"
+
+    if mode in ("compute", "public", "laboratory"):
+        summary = run_compute(include_exp_images=(mode == "laboratory"))
+        print(json.dumps(
+            {
+                "stage": "compute",
+                "computed_csv": summary["outputs"]["computed_csv"],
+                "png": summary["outputs"]["png"],
+                "computed_simulation": summary["computed_simulation"],
+                "mae_vs_derived_experiment_image_points": summary["mae_vs_derived_experiment_image_points"],
+                "rmse_vs_derived_experiment_image_points": summary["rmse_vs_derived_experiment_image_points"],
+            },
+            indent=2,
+        ))
+        if mode == "compute":
+            return 0
+
+    if mode in ("verify", "public"):
+        report = run_verify()
+        print(json.dumps(
+            {
+                "stage": "verify",
+                "status": report["status"],
+                "mae_image_derived": report["mae_image_derived"],
+                "rmse_image_derived": report["rmse_image_derived"],
+                "max_abs_simulation_error": report["max_abs_simulation_error"],
+                "failures": report["failures"],
+                "validation_report": str(VALIDATION_MD),
+            },
+            indent=2,
+        ))
+        return 0 if report["status"] == "PASS" else 1
+
+    parser.error("select --compute, --verify, --public, or --laboratory")
+    return 2
 
 
 if __name__ == "__main__":

@@ -1,0 +1,7 @@
+lens_displacement_um,corrected_n_centers,corrected_periodic_frequency_cycles_per_mm,corrected_plotted_frequency_cycles_per_mm,measurement_status,source_note
+0.0,1,,0.0,reference_zero_no_fringe_modulation,Supplementary_Table_S3_derived_public_record
+20.0,2,0.429938017,0.429938017,measured,Supplementary_Table_S3_derived_public_record
+30.0,3,0.549472354,0.549472354,measured,Supplementary_Table_S3_derived_public_record
+40.0,4,0.785463685,0.785463685,measured,Supplementary_Table_S3_derived_public_record
+60.0,5,0.968635059,0.968635059,measured,Supplementary_Table_S3_derived_public_record
+180.0,16,3.043021563,3.043021563,measured,Supplementary_Table_S3_derived_public_record

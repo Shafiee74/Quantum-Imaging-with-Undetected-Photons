@@ -1,0 +1,97 @@
+{
+  "stage": "verify",
+  "status": "PASS",
+  "tolerances": {
+    "abs_cycles_per_mm": 5e-06,
+    "center_count_exact": true,
+    "mae_rmse_tol": 0.0005,
+    "expected_mae": 0.05215,
+    "expected_rmse": 0.05465
+  },
+  "mae_image_derived": 0.052147308575735074,
+  "rmse_image_derived": 0.054645860703488175,
+  "comparisons": [
+    {
+      "dx_um": 0.0,
+      "computed_simulation_cycles_per_mm": 0.0,
+      "reference_simulation_cycles_per_mm": 0.0,
+      "abs_error": 0.0,
+      "rel_error": 0.0,
+      "computed_n_centers": 1,
+      "reference_n_centers": 1,
+      "pass_frequency": true,
+      "pass_centers": true,
+      "computed_source": "aligned_reference_convention",
+      "reference_source": "aligned_reference_convention"
+    },
+    {
+      "dx_um": 20.0,
+      "computed_simulation_cycles_per_mm": 0.3292181069958847,
+      "reference_simulation_cycles_per_mm": 0.329218107,
+      "abs_error": 4.115263685378068e-12,
+      "rel_error": 1.250011344417963e-11,
+      "computed_n_centers": 1,
+      "reference_n_centers": 1,
+      "pass_frequency": true,
+      "pass_centers": true,
+      "computed_source": "analytical_phase_gradient",
+      "reference_source": "analytical_phase_gradient"
+    },
+    {
+      "dx_um": 30.0,
+      "computed_simulation_cycles_per_mm": 0.5849663644340449,
+      "reference_simulation_cycles_per_mm": 0.584966364,
+      "abs_error": 4.3404491112397636e-10,
+      "rel_error": 7.419997761170014e-10,
+      "computed_n_centers": 3,
+      "reference_n_centers": 3,
+      "pass_frequency": true,
+      "pass_centers": true,
+      "computed_source": "image_center_spacing_20_percent",
+      "reference_source": "image_center_spacing_20_percent"
+    },
+    {
+      "dx_um": 40.0,
+      "computed_simulation_cycles_per_mm": 0.7222824124232574,
+      "reference_simulation_cycles_per_mm": 0.722282412,
+      "abs_error": 4.2325742910520603e-10,
+      "rel_error": 5.859999109395537e-10,
+      "computed_n_centers": 3,
+      "reference_n_centers": 3,
+      "pass_frequency": true,
+      "pass_centers": true,
+      "computed_source": "image_center_spacing_20_percent",
+      "reference_source": "image_center_spacing_20_percent"
+    },
+    {
+      "dx_um": 60.0,
+      "computed_simulation_cycles_per_mm": 1.005530417295123,
+      "reference_simulation_cycles_per_mm": 1.005530417,
+      "abs_error": 2.951230371195379e-10,
+      "rel_error": 2.9349986050152267e-10,
+      "computed_n_centers": 3,
+      "reference_n_centers": 3,
+      "pass_frequency": true,
+      "pass_centers": true,
+      "computed_source": "image_center_spacing_20_percent",
+      "reference_source": "image_center_spacing_20_percent"
+    },
+    {
+      "dx_um": 180.0,
+      "computed_simulation_cycles_per_mm": 2.97000297000297,
+      "reference_simulation_cycles_per_mm": 2.97000297,
+      "abs_error": 2.9700686354772188e-12,
+      "rel_error": 1.0000221095661796e-12,
+      "computed_n_centers": 11,
+      "reference_n_centers": 11,
+      "pass_frequency": true,
+      "pass_centers": true,
+      "computed_source": "image_center_spacing_20_percent",
+      "reference_source": "image_center_spacing_20_percent"
+    }
+  ],
+  "failures": [],
+  "computed_csv": "D:\\Quantum\\Quantum\\QIUP_Synthetic_Dataset\\Ver1.3.4(Digital_Twin_Verification)\\DT_version 3.4.2_12Nov\\reproducibility\\figure6a\\computed\\Figure6a_Computed_Data.csv",
+  "reference_csv": "D:\\Quantum\\Quantum\\QIUP_Synthetic_Dataset\\Ver1.3.4(Digital_Twin_Verification)\\DT_version 3.4.2_12Nov\\reproducibility\\figure6a\\reference\\Figure6a_Final_Data.csv",
+  "max_abs_simulation_error": 4.3404491112397636e-10
+}

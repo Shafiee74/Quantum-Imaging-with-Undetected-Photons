@@ -1,0 +1,59 @@
+{
+  "stage": "compute",
+  "model": {
+    "transverse_phase": "Phi_tr = [4*pi/(lambda_s*f_c)]*(dx*x + dy*y)",
+    "analytical_frequency": "kappa_tr = 2*|dx|/(lambda_s*f_c)  [cycles/mm]",
+    "lambda_s_nm": 810.0,
+    "f_c_mm": 150.0,
+    "simulation_prominence": 0.2,
+    "setup_id": "config_c_lab_v1",
+    "optics_sha256": "bd89fe2e30eea3669bbd06afc2cd2d48b00c1a902ad1057c9dff295793e1fb43"
+  },
+  "outputs": {
+    "computed_csv": "D:\\Quantum\\Quantum\\QIUP_Synthetic_Dataset\\Ver1.3.4(Digital_Twin_Verification)\\DT_version 3.4.2_12Nov\\reproducibility\\figure6a\\computed\\Figure6a_Computed_Data.csv",
+    "png": "D:\\Quantum\\Quantum\\QIUP_Synthetic_Dataset\\Ver1.3.4(Digital_Twin_Verification)\\DT_version 3.4.2_12Nov\\reproducibility\\figure6a\\out\\Figure6a_Final.png",
+    "pdf": "D:\\Quantum\\Quantum\\QIUP_Synthetic_Dataset\\Ver1.3.4(Digital_Twin_Verification)\\DT_version 3.4.2_12Nov\\reproducibility\\figure6a\\out\\Figure6a_Final.pdf"
+  },
+  "computed_simulation": [
+    {
+      "dx_um": 0.0,
+      "n_centers": 1,
+      "plotted_cycles_per_mm": 0.0,
+      "source": "aligned_reference_convention"
+    },
+    {
+      "dx_um": 20.0,
+      "n_centers": 1,
+      "plotted_cycles_per_mm": 0.3292181069958847,
+      "source": "analytical_phase_gradient"
+    },
+    {
+      "dx_um": 30.0,
+      "n_centers": 3,
+      "plotted_cycles_per_mm": 0.5849663644340449,
+      "source": "image_center_spacing_20_percent"
+    },
+    {
+      "dx_um": 40.0,
+      "n_centers": 3,
+      "plotted_cycles_per_mm": 0.7222824124232574,
+      "source": "image_center_spacing_20_percent"
+    },
+    {
+      "dx_um": 60.0,
+      "n_centers": 3,
+      "plotted_cycles_per_mm": 1.005530417295123,
+      "source": "image_center_spacing_20_percent"
+    },
+    {
+      "dx_um": 180.0,
+      "n_centers": 11,
+      "plotted_cycles_per_mm": 2.97000297000297,
+      "source": "image_center_spacing_20_percent"
+    }
+  ],
+  "mae_vs_derived_experiment_image_points": 0.052147308575735074,
+  "rmse_vs_derived_experiment_image_points": 0.054645860703488175,
+  "dx0_mean": 0.18390471477711387,
+  "note": "Simulation values are independently computed. Experimental frequency markers are derived Table S3 public records. Reference Final_Data.csv was not used as a computational substitute."
+}

@@ -49,10 +49,11 @@ edited by hand (the file name is historical; the package is not a digital twin).
 
 ### Data availability (EMCCD restriction)
 
-See [`DATA_AVAILABILITY.md`](DATA_AVAILABILITY.md). Original EMCCD TIFFs for
-Figures 5–6 are **not** published. Derived Figure 6(a) frequency tables and the
-public numerical reproduction entry point are shipped under
-`reproducibility/figure6a/` (`python tools/reproduce_figure6a.py --public`).
+See [`DATA_AVAILABILITY.md`](DATA_AVAILABILITY.md). Original experimental EMCCD
+TIFF images for Figures 5–6 are not publicly available. Derived experimental
+measurements and analysis documentation are available in this repository.
+Figure 6(a) public path: `python tools/reproduce_figure6a.py --public`
+(independent simulation compute, then read-only validation).
 
 ### Version 3.4.2 verification
 
@@ -60,7 +61,8 @@ public numerical reproduction entry point are shipped under
 python build_single_file.py --check                       # single file == clean rebuild
 python -m verification.parity                             # modular vs single-file parity, A/B/C/D
 python -m verification.config_d_checks                    # two-crystal near-field checks (historical name; manuscript B / legacy D)
-python tools/reproduce_figure6a.py --public               # Fig. 6(a) numerical public reproduction
+python tools/reproduce_figure6a.py --compute              # Fig. 6(a) independent model computation
+python tools/reproduce_figure6a.py --verify               # compare computed vs reference (no overwrite)
 python parameter_inventory_audit.py                       # trace parameter consumption per profile (slow)
 python build_parameter_spec.py                            # regenerate parameter inventory JSON
 python -B -m pytest tests -q -p no:cacheprovider          # complete test suite

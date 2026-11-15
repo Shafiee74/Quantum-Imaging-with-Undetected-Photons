@@ -1,0 +1,7 @@
+dx_um,simulation_n_centers,simulation_plotted_cycles_per_mm,simulation_frequency_source,experiment_n_centers,experiment_plotted_cycles_per_mm
+0.0,1,0.0,aligned_reference_convention,1,0.0
+20.0,1,0.329218107,analytical_phase_gradient,2,0.429938017
+30.0,3,0.584966364,image_center_spacing_20_percent,3,0.549472354
+40.0,3,0.722282412,image_center_spacing_20_percent,4,0.785463685
+60.0,3,1.005530417,image_center_spacing_20_percent,5,0.968635059
+180.0,11,2.970002970,image_center_spacing_20_percent,16,3.043021563

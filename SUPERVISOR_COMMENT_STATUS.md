@@ -10,8 +10,8 @@
 | Item | Status | Evidence |
 |---|---|---|
 | **A1** Architecture A–D naming | **DONE** | Public README matches manuscript; YAML/`SETUP_PROFILE_NAME_ALIASES`/`tests/test_configuration_identifier_standardization.py` verify implementation (not labels alone). Legacy B↔D evidence map documented. |
-| **A2** Figure 6(a) public workflow | **DONE (numerical public path)** | `tools/figure6a_experimental_fringe_center_correction.py` present; derived CSVs in `reproducibility/figure6a/`; `python tools/reproduce_figure6a.py --public` regenerates plot with **hollow circle at analytical 20 µm**; MAE=0.05215, RMSE=0.05465 (image-derived convention). Experimental **image strip** still requires private EMCCD (placeholders labeled “restricted”). |
-| **A3** Data/code availability accuracy | **DONE** | `DATA_AVAILABILITY.md` + README section: EMCCD not published; controlled access via corresponding author/PI; clean numerical checkout path documented. |
+| **A2** Figure 6(a) public workflow | **DONE** | Independent `--compute` (model→images→centers→frequencies); `--verify` read-only; **no** `enforce_published` overwrite; hollow 20 µm marker; MAE≈0.05215, RMSE≈0.05465. Exp. image strip not public. |
+| **A3** Data/code availability accuracy | **DONE** | `DATA_AVAILABILITY.md` Restricted section uses the required wording; no promise to provide original TIFFs on request. |
 
 ## B. Recommended manuscript refinements
 
@@ -35,5 +35,7 @@ No further code action. Supervisor’s MAE/RMSE recalculation matches the public
 ## Public reproduction command
 
 ```bash
-python tools/reproduce_figure6a.py --public
+python tools/reproduce_figure6a.py --compute
+python tools/reproduce_figure6a.py --verify
+# or: python tools/reproduce_figure6a.py --public
 ```

@@ -13,9 +13,9 @@ requires a local experimental TIFF root (default:
 ``exp data/lens drift/witout object/T drift``). Without that private data it
 exits with a clear message and writes no fabricated frequencies.
 
-For a clean public checkout, use the shipped derived table
-``reproducibility/figure6a/Experimental_Frequency_Comparison.csv`` via
-``python tools/reproduce_figure6a.py --public`` (hollow-circle 20 µm marker).
+For a clean public checkout, use the shipped derived Table S3 record
+``reproducibility/figure6a/reference/Experimental_Frequency_Comparison.csv``
+via ``python tools/reproduce_figure6a.py --compute`` / ``--verify``.
 """
 from __future__ import annotations
 

@@ -1,8 +1,17 @@
-﻿Command: python tools/reproduce_figure6a.py --public
-Result: success
-MAE (image-derived, excludes analytical 20 um) = 0.05215 cycles/mm
-RMSE = 0.05465 cycles/mm
-Sources: aligned_reference_convention, analytical_phase_gradient, image_center_spacing_20_percent x4
-Outputs: reproducibility/figure6a/out/Figure6a_Final.png|.pdf
-Hollow circular marker used for analytical 20 um simulation point.
-Experimental image strip omitted (EMCCD restricted); frequency panel uses shipped derived CSV.
+﻿# Clean-run log — Figure 6(a) independent compute + verify
+# Command sequence:
+#   python tools/reproduce_figure6a.py --compute
+#   python tools/reproduce_figure6a.py --verify
+
+compute: PASS
+  simulated centers: 1, 1, 3, 3, 3, 11
+  simulated k (cycles/mm): 0, 0.329218107, 0.584966364, 0.722282412, 1.005530417, 2.970002970
+  sources: aligned_reference, analytical_20um, image_20pct x4
+  MAE vs derived experiment (30/40/60/180): 0.05215
+  RMSE: 0.05465
+  outputs: computed/Figure6a_Computed_Data.csv, out/Figure6a_Final.png|.pdf
+
+verify: PASS
+  max abs simulation error vs reference Final_Data: ~4.3e-10 cycles/mm
+  no enforce_published / no manuscript-value overwrite
+  reference files used read-only

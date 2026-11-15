@@ -1,7 +1,7 @@
-dx_um,simulation_n_centers,simulation_image_derived_cycles_per_mm,simulation_analytical_cycles_per_mm,simulation_plotted_cycles_per_mm,simulation_frequency_source,simulation_mean_spacing_mm,experiment_n_centers,experiment_image_derived_cycles_per_mm,experiment_plotted_cycles_per_mm,experiment_frequency_source
-0.0,1,nan,0.0,0.0,aligned_reference_convention,nan,1,nan,0.0,aligned_reference_convention
-20.0,1,nan,0.3292181069958847,0.3292181069958847,analytical_phase_gradient,nan,2,0.429938,0.429938,image_center_spacing
-30.0,3,0.5849663644340449,0.4938271604938271,0.5849663644340449,image_center_spacing_20_percent,1.7095000000000002,3,0.549472,0.549472,image_center_spacing
-40.0,3,0.7222824124232574,0.6584362139917694,0.7222824124232574,image_center_spacing_20_percent,1.3845,5,0.785464,0.785464,image_center_spacing
-60.0,3,1.005530417295123,0.9876543209876542,1.005530417295123,image_center_spacing_20_percent,0.9945000000000002,7,0.968635,0.968635,image_center_spacing
-180.0,11,2.97000297000297,2.962962962962963,2.97000297000297,image_center_spacing_20_percent,0.3367,21,3.043022,3.043022,image_center_spacing
+dx_um,simulation_n_centers,simulation_image_derived_cycles_per_mm,simulation_analytical_cycles_per_mm,simulation_plotted_cycles_per_mm,simulation_frequency_source,simulation_mean_spacing_mm,experiment_n_centers,experiment_plotted_cycles_per_mm,experiment_frequency_source
+0.0,1,nan,0.0,0.0,aligned_reference_convention,nan,1,0.0,aligned_reference_convention
+20.0,1,nan,0.3292181069958847,0.3292181069958847,analytical_phase_gradient,nan,2,0.429938017,derived_table_S3_public_record
+30.0,3,0.5849663644340449,0.4938271604938271,0.5849663644340449,image_center_spacing_20_percent,1.7095000000000002,3,0.549472354,derived_table_S3_public_record
+40.0,3,0.7222824124232574,0.6584362139917694,0.7222824124232574,image_center_spacing_20_percent,1.3845,4,0.785463685,derived_table_S3_public_record
+60.0,3,1.005530417295123,0.9876543209876542,1.005530417295123,image_center_spacing_20_percent,0.9945000000000002,5,0.968635059,derived_table_S3_public_record
+180.0,11,2.97000297000297,2.962962962962963,2.97000297000297,image_center_spacing_20_percent,0.3367,16,3.043021563,derived_table_S3_public_record
