@@ -15,3 +15,8 @@ verify: PASS
   max abs simulation error vs reference Final_Data: ~4.3e-10 cycles/mm
   no enforce_published / no manuscript-value overwrite
   reference files used read-only
+
+quarantine checks:
+  python tools/figure6a_simulated_fringe_frequency_correction.py -> exit 2 (blocked)
+  python tools/figure6a_manuscript_candidate.py -> exit 2 (blocked)
+  python tools/reproduce_figure6a.py --replot-archived -> exit 3 (labelled non-reproduction)

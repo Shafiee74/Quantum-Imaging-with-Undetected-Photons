@@ -63,6 +63,7 @@ python -m verification.parity                             # modular vs single-fi
 python -m verification.config_d_checks                    # two-crystal near-field checks (historical name; manuscript B / legacy D)
 python tools/reproduce_figure6a.py --compute              # Fig. 6(a) independent model computation
 python tools/reproduce_figure6a.py --verify               # compare computed vs reference (no overwrite)
+python tools/reproduce_figure6a.py --replot-archived      # labelled CSV-only replot (NOT reproduction)
 python parameter_inventory_audit.py                       # trace parameter consumption per profile (slow)
 python build_parameter_spec.py                            # regenerate parameter inventory JSON
 python -B -m pytest tests -q -p no:cacheprovider          # complete test suite

@@ -13,6 +13,12 @@ python tools/reproduce_figure6a.py --verify
 python tools/reproduce_figure6a.py --public
 ```
 
+Explicit non-reproduction mode (labelled; exits nonzero):
+
+```bash
+python tools/reproduce_figure6a.py --replot-archived
+```
+
 ## Directory roles
 
 | Path | Role |
@@ -20,7 +26,7 @@ python tools/reproduce_figure6a.py --public
 | `reference/` | Validation targets only (`Figure6a_Final_Data.csv`, Table S3 experimental frequencies) |
 | `computed/` | Newly calculated simulation results (`Figure6a_Computed_Data.csv`) |
 | `out/` | Figures and validation reports generated from computed data |
-| `historical/` | Notes on obsolete pre-correction tables (not on the active path) |
+| `historical/` | Quarantined obsolete / diagnostic outputs (not on the active path) |
 
 ## Model summary
 
@@ -32,6 +38,7 @@ python tools/reproduce_figure6a.py --public
 
 ## Integrity rules
 
-- `reference/Figure6a_Final_Data.csv` is **never** used as a computational substitute.
+- `reference/Figure6a_Final_Data.csv` is **never** used as a computational substitute for `--compute`.
 - There is **no** fallback that copies manuscript frequencies into the plot when mismatch occurs.
 - On verification mismatch the process exits nonzero and reports calculated vs reference values.
+- Legacy `Figure6a_Corrected*` generators are gated behind `--allow-historical`.

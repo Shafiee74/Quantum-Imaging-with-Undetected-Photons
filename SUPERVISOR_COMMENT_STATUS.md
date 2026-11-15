@@ -1,8 +1,8 @@
 # Supervisor comment status — mandatory A / recommended B / handover D
 
 **Date:** 2026-11-15  
-**Public tip:** see `git rev-parse HEAD` / `origin/main`  
-**Tag:** `v3.4.2-comment-a2`  
+**Public tip:** `origin/main` (retagged with integrity + quarantine close-out)  
+**Tag:** `v3.4.2-comment-a2` (must match tip after close-out push)  
 **Repo:** https://github.com/Shafiee74/Quantum-Imaging-with-Undetected-Photons
 
 ## A. Mandatory corrections
@@ -10,7 +10,7 @@
 | Item | Status | Evidence |
 |---|---|---|
 | **A1** Architecture A–D naming | **DONE** | Public README matches manuscript; YAML/`SETUP_PROFILE_NAME_ALIASES`/`tests/test_configuration_identifier_standardization.py` verify implementation (not labels alone). Legacy B↔D evidence map documented. |
-| **A2** Figure 6(a) public workflow | **DONE** | Independent `--compute` (model→images→centers→frequencies); `--verify` read-only; **no** `enforce_published` overwrite; hollow 20 µm marker; MAE≈0.05215, RMSE≈0.05465. Exp. image strip not public. |
+| **A2** Figure 6(a) public workflow | **DONE** | Independent `--compute` / `--verify`; no overwrite; hollow 20 µm; MAE≈0.05215, RMSE≈0.05465; legacy Corrected scripts quarantined; `--replot-archived` explicitly labelled (exit 3). |
 | **A3** Data/code availability accuracy | **DONE** | `DATA_AVAILABILITY.md` Restricted section uses the required wording; no promise to provide original TIFFs on request. |
 
 ## B. Recommended manuscript refinements

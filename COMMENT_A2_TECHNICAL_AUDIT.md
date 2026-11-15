@@ -121,9 +121,10 @@ python verify_sha256_manifest.py
 
 ## 9. Immutable release pointer
 
-- **Public tip (`main`):** `0590ce8073c53f812166a19219aff15c560319c1`
-- **Primary close-out commit:** `56df7f960bb2be1052307593173d5730e2ee560d`
+- **Public tip (`main`):** see current `git rev-parse HEAD` after Comment A2 integrity + quarantine close-out
 - **Branch:** https://github.com/Shafiee74/Quantum-Imaging-with-Undetected-Photons/tree/main
-- **Tag:** `v3.4.2-comment-a2` — https://github.com/Shafiee74/Quantum-Imaging-with-Undetected-Photons/releases/tag/v3.4.2-comment-a2
-- **Anonymous checks (2026-11-14):** public README shows corrected A/B/C/D; `tools/figure6a_experimental_fringe_center_correction.py` reachable; `VERSION` = 3.4.2.
+- **Tag:** `v3.4.2-comment-a2` — https://github.com/Shafiee74/Quantum-Imaging-with-Undetected-Photons/releases/tag/v3.4.2-comment-a2  
+  (retagged to the integrity-fix tip so the release matches the verified chain)
+- **Public Fig. 6(a):** `python tools/reproduce_figure6a.py --compute` then `--verify`
 - EMCCD datasets remain unpublished by design.
+- Legacy `Figure6a_Corrected*` generators are quarantined (`--allow-historical` only).

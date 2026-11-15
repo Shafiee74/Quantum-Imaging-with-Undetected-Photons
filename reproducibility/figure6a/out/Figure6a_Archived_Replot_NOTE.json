@@ -1,0 +1,9 @@
+{
+  "stage": "replot-archived",
+  "status": "ARCHIVED_REPLOT_ONLY",
+  "independent_reproduction": false,
+  "source_csv": "D:\\Quantum\\Quantum\\QIUP_Synthetic_Dataset\\Ver1.3.4(Digital_Twin_Verification)\\DT_version 3.4.2_12Nov\\reproducibility\\figure6a\\reference\\Figure6a_Final_Data.csv",
+  "png": "D:\\Quantum\\Quantum\\QIUP_Synthetic_Dataset\\Ver1.3.4(Digital_Twin_Verification)\\DT_version 3.4.2_12Nov\\reproducibility\\figure6a\\out\\Figure6a_Archived_Replot.png",
+  "pdf": "D:\\Quantum\\Quantum\\QIUP_Synthetic_Dataset\\Ver1.3.4(Digital_Twin_Verification)\\DT_version 3.4.2_12Nov\\reproducibility\\figure6a\\out\\Figure6a_Archived_Replot.pdf",
+  "warning": "Values were read from the reference CSV; the physical model was not executed. Do not cite this mode as Comment A2 closure."
+}

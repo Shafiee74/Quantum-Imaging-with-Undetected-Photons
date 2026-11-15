@@ -16,10 +16,11 @@ laboratory mode.
 
 Commands::
 
-    python tools/reproduce_figure6a.py --compute   # model → computed CSV → figure
-    python tools/reproduce_figure6a.py --verify     # compare computed vs reference
-    python tools/reproduce_figure6a.py --public     # compute then verify
-    python tools/reproduce_figure6a.py --laboratory # private TIFF image strip
+    python tools/reproduce_figure6a.py --compute          # model → computed CSV → figure
+    python tools/reproduce_figure6a.py --verify            # compare computed vs reference
+    python tools/reproduce_figure6a.py --public            # compute then verify
+    python tools/reproduce_figure6a.py --replot-archived   # explicit CSV-only replot (NOT reproduction)
+    python tools/reproduce_figure6a.py --laboratory        # private TIFF image strip
 """
 from __future__ import annotations
 
@@ -417,6 +418,84 @@ def mae_rmse(sim: list[float], exp: list[float]) -> tuple[float, float]:
     return float(np.mean(np.abs(err))), float(np.sqrt(np.mean(err**2)))
 
 
+def load_csv_rows(path: Path) -> list[dict[str, str]]:
+    with path.open(encoding="utf-8", newline="") as fh:
+        return list(csv.DictReader(fh))
+
+
+def run_replot_archived() -> dict[str, Any]:
+    """Explicit archived replot from reference CSV only.
+
+    This mode is intentionally labelled and must never be treated as Comment A2
+    independent reproduction. It does not execute the physical model.
+    """
+    if not REF_FINAL_CSV.is_file():
+        raise FileNotFoundError(f"Missing reference CSV: {REF_FINAL_CSV}")
+    if not REF_EXP_CSV.is_file():
+        raise FileNotFoundError(f"Missing experimental reference CSV: {REF_EXP_CSV}")
+
+    rows = load_csv_rows(REF_FINAL_CSV)
+    dx_list = [float(r["dx_um"]) for r in rows]
+    sim_k = [float(r["simulation_plotted_cycles_per_mm"]) for r in rows]
+    exp_k = [float(r["experiment_plotted_cycles_per_mm"]) for r in rows]
+    sources = [str(r["simulation_frequency_source"]) for r in rows]
+
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    apply_publication_graphics_style()
+    fig, ax = plt.subplots(figsize=(180.0 / 25.4, 3.2))
+    dx_sq = [d for d, src in zip(dx_list, sources) if src != "analytical_phase_gradient"]
+    sim_sq = [k for k, src in zip(sim_k, sources) if src != "analytical_phase_gradient"]
+    ax.plot(dx_list, sim_k, linestyle="--", color=REFERENCE_TEAL, linewidth=1.35, zorder=2)
+    ax.plot(
+        dx_sq, sim_sq, linestyle="None", marker="s", color=REFERENCE_TEAL,
+        markersize=6, markeredgecolor="0.25", markeredgewidth=0.6, zorder=3,
+    )
+    dx_an = [d for d, src in zip(dx_list, sources) if src == "analytical_phase_gradient"]
+    sim_an = [k for k, src in zip(sim_k, sources) if src == "analytical_phase_gradient"]
+    if dx_an:
+        ax.plot(
+            dx_an, sim_an, linestyle="None", marker="o", markersize=8,
+            markerfacecolor="none", markeredgecolor=REFERENCE_TEAL, markeredgewidth=1.4, zorder=4,
+        )
+    ax.plot(
+        dx_list, exp_k, marker="D", linestyle=(0, (2.5, 2.0, 6.0, 2.0)), color=REFERENCE_GOLD,
+        markersize=6, markeredgecolor="0.25", markeredgewidth=0.6, linewidth=1.35, zorder=3,
+    )
+    ax.set_xlabel("Transverse idler-lens displacement, Δx (µm)")
+    ax.set_ylabel("Spatial frequency (cycles mm$^{-1}$)")
+    ax.set_xticks(dx_list)
+    style_reference_axes(ax)
+    ax.set_ylim(0.0, max(sim_k + exp_k) * 1.12)
+    ax.set_xlim(-8.0, max(dx_list) * 1.02)
+    fig.suptitle("ARCHIVED REPLOT FROM REFERENCE CSV — NOT INDEPENDENT COMPUTE", fontsize=9, color="0.25")
+    fig.text(
+        0.01, 0.01,
+        "This figure copies archived numerical targets. Comment A2 requires --compute / --verify.",
+        fontsize=7, color="0.4",
+    )
+    png = OUT_DIR / "Figure6a_Archived_Replot.png"
+    pdf = OUT_DIR / "Figure6a_Archived_Replot.pdf"
+    fig.savefig(pdf, bbox_inches="tight", pad_inches=0.06)
+    fig.savefig(png, dpi=200, bbox_inches="tight", pad_inches=0.06)
+    plt.close(fig)
+    note = {
+        "stage": "replot-archived",
+        "status": "ARCHIVED_REPLOT_ONLY",
+        "independent_reproduction": False,
+        "source_csv": str(REF_FINAL_CSV),
+        "png": str(png),
+        "pdf": str(pdf),
+        "warning": (
+            "Values were read from the reference CSV; the physical model was not executed. "
+            "Do not cite this mode as Comment A2 closure."
+        ),
+    }
+    (OUT_DIR / "Figure6a_Archived_Replot_NOTE.json").write_text(
+        json.dumps(note, indent=2), encoding="utf-8"
+    )
+    return note
+
+
 # ---------------------------------------------------------------------------
 # Validation module — reference files are read-only comparison evidence
 # ---------------------------------------------------------------------------
@@ -535,22 +614,43 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--compute", action="store_true", help="Independent model computation + figure")
     parser.add_argument("--verify", action="store_true", help="Compare computed vs reference (no overwrite)")
     parser.add_argument("--public", action="store_true", help="compute then verify (clean checkout)")
+    parser.add_argument(
+        "--replot-archived",
+        action="store_true",
+        help="Explicit CSV-only replot (NOT independent reproduction)",
+    )
     parser.add_argument("--laboratory", action="store_true", help="Also load private EMCCD image strip")
     # Legacy aliases
-    parser.add_argument("--mode", choices=("public", "laboratory", "compute", "verify"), default=None)
+    parser.add_argument(
+        "--mode",
+        choices=("public", "laboratory", "compute", "verify", "replot-archived"),
+        default=None,
+    )
     args = parser.parse_args(argv)
 
     mode = None
-    if args.laboratory or args.mode == "laboratory":
+    if args.replot_archived or args.mode == "replot-archived":
+        mode = "replot-archived"
+    elif args.laboratory or args.mode == "laboratory":
         mode = "laboratory"
     elif args.verify or args.mode == "verify":
         mode = "verify"
     elif args.compute or args.mode == "compute":
         mode = "compute"
     elif args.public or args.mode == "public" or (
-        not args.compute and not args.verify and not args.laboratory and args.mode is None
+        not args.compute
+        and not args.verify
+        and not args.laboratory
+        and not args.replot_archived
+        and args.mode is None
     ):
         mode = "public"
+
+    if mode == "replot-archived":
+        note = run_replot_archived()
+        print(json.dumps(note, indent=2))
+        # Nonzero so automation cannot treat archived replot as successful reproduction.
+        return 3
 
     if mode in ("compute", "public", "laboratory"):
         summary = run_compute(include_exp_images=(mode == "laboratory"))
@@ -584,7 +684,7 @@ def main(argv: list[str] | None = None) -> int:
         ))
         return 0 if report["status"] == "PASS" else 1
 
-    parser.error("select --compute, --verify, --public, or --laboratory")
+    parser.error("select --compute, --verify, --public, --replot-archived, or --laboratory")
     return 2
 
 

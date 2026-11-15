@@ -1,24 +1,19 @@
 #!/usr/bin/env python3
-"""Correct simulated fringe-center frequencies for Figure 6(a).
+"""Library + historical diagnostic for simulated fringe-center extraction.
 
-The Joint-SPDC intensity panels are recomputed with the manuscript settings
-and are not edited. Only the bright-fringe center measurement changes.
+**Authoritative public Figure 6(a) path:** ``tools/reproduce_figure6a.py``
+(``--compute`` / ``--verify``). Do not use this module as a publication
+entry point.
 
-At Δx >= 40 µm the approved extractor smoothed the profile and applied
-``find_peaks`` distance on the NaN-compressed bin index. That index step is
-coarser than a profile bin, so the gate became wider than one bright fringe.
-At 40 µm it kept the central crest and the two outer crests, and dropped the
-two intermediate crests whose prominence is 84% of the central fringe. The
-reported spacing was therefore about two fringe periods, and the frequency
-fell from 0.970 cycles/mm at 30 µm to 0.643 cycles/mm at 40 µm.
-
-The corrected measurement averages each column inside the illuminated mask
-(the fringes are vertical), merges samples that sit on the same flat crest,
-and keeps crests whose prominence is at least 25% of the brightest crest in
-that frame. Frequency remains 1 / mean adjacent-center spacing.
+``bright_crests`` remains importable for the public pipeline. Running this
+file as ``__main__`` is gated: without ``--allow-historical`` it exits and
+writes nothing. With that flag, outputs go only under
+``reproducibility/figure6a/historical/`` (never ``Figure6a_Corrected*`` on
+the publication path).
 """
 from __future__ import annotations
 
+import argparse
 import csv
 import math
 import sys
@@ -51,9 +46,10 @@ from tools.publication_graphics_style import (
     style_reference_axes,
 )
 
-OUT = ROOT / "Figure6a_Simulated_Fringe_Frequency_Correction"
-APPROVED_CSV = ROOT / "article figures" / "Figure6a_Final_Data.csv"
-EXP_CORR_CSV = ROOT / "Figure6a_Experimental_Fringe_Center_Correction" / "Experimental_Frequency_Comparison.csv"
+HIST_DIR = ROOT / "reproducibility" / "figure6a" / "historical" / "Figure6a_Simulated_Fringe_Frequency_Correction"
+OUT = HIST_DIR  # historical-only when --allow-historical is used
+APPROVED_CSV = ROOT / "reproducibility" / "figure6a" / "reference" / "Figure6a_Final_Data.csv"
+EXP_CORR_CSV = ROOT / "reproducibility" / "figure6a" / "reference" / "Experimental_Frequency_Comparison.csv"
 PIXEL_UM = 13.0
 PIXEL_MM = PIXEL_UM * 1e-3
 REL_PROM_MIN = 0.25
@@ -301,20 +297,51 @@ def draw_figure(
     finite = [v for v in sim_k + exp_k if math.isfinite(v)]
     axp.set_ylim(0.0, max(finite) * 1.12)
     axp.set_xlim(-8.0, max(dx_list) * 1.02)
-    fig.savefig(OUT / "Figure6a_Corrected.pdf", bbox_inches="tight", pad_inches=0.06)
-    fig.savefig(OUT / "Figure6a_Corrected.png", dpi=200, bbox_inches="tight", pad_inches=0.06)
+    fig.savefig(OUT / "Figure6a_Corrected_HISTORICAL.pdf", bbox_inches="tight", pad_inches=0.06)
+    fig.savefig(OUT / "Figure6a_Corrected_HISTORICAL.png", dpi=200, bbox_inches="tight", pad_inches=0.06)
     plt.close(fig)
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--allow-historical",
+        action="store_true",
+        help="Write diagnostic outputs under reproducibility/figure6a/historical/ only",
+    )
+    args = parser.parse_args(argv)
+    if not args.allow_historical:
+        print(
+            "OBSOLETE publication entry point.\n"
+            "Use: python tools/reproduce_figure6a.py --compute\n"
+            "     python tools/reproduce_figure6a.py --verify\n"
+            "Pass --allow-historical only to regenerate archived diagnostics "
+            f"under {HIST_DIR.as_posix()}."
+        )
+        return 2
+
     OUT.mkdir(parents=True, exist_ok=True)
     setup = resolve_setup_selection("C_lab")
     dk = DeltaKCalibrationState(mode="theory")
     theory = {float(dx): run_theory_iminus(setup, dk, dx_um=float(dx)) for dx in TRANS_DX_UM}
-    groups = group_tiffs(EXP_ROOT, ref_mm=X0_MM, rel_scale=1000.0)
-    exp = {float(dx): mean_stack_deduped(groups[round(float(dx), 6)])[0] for dx in TRANS_DX_UM}
+    exp: dict[float, np.ndarray] = {}
+    if EXP_ROOT.is_dir():
+        groups = group_tiffs(EXP_ROOT, ref_mm=X0_MM, rel_scale=1000.0)
+        exp = {float(dx): mean_stack_deduped(groups[round(float(dx), 6)])[0] for dx in TRANS_DX_UM}
+    else:
+        # Historical diagnostic without private TIFFs: blank experimental strip.
+        for dx in TRANS_DX_UM:
+            exp[float(dx)] = np.zeros_like(theory[float(dx)])
 
-    approved = {(r["modality"], float(r["dx_um"])): r for r in load_csv(APPROVED_CSV)}
+    ref_rows = load_csv(APPROVED_CSV)
+    approved = {
+        ("Simulation", float(r["dx_um"])): {
+            "n_fringe_centers": r["simulation_n_centers"],
+            "k_plotted_cycles_per_mm": r["simulation_plotted_cycles_per_mm"],
+            "k_center_spacing_cycles_per_mm": r["simulation_plotted_cycles_per_mm"],
+        }
+        for r in ref_rows
+    }
     exp_corr = {float(r["lens_displacement_um"]): r for r in load_csv(EXP_CORR_CSV)}
 
     frames = []
@@ -466,11 +493,14 @@ def main() -> None:
         "",
     ]
     (OUT / "Simulated_Frequency_Correction_Report.md").write_text("\n".join(lines), encoding="utf-8")
+    print("HISTORICAL diagnostic only — not the Comment A2 publication path.")
     print("dx0 mean", float(np.mean(theory[0.0])))
     for row in sim_rows:
         print(row["dx_um"], "n", row["corrected_n_centers"], "k", row["corrected_periodic_k_cycles_per_mm"])
     print("MAE/RMSE old", mae_old, rmse_old, "new", mae_new, rmse_new)
+    print("outputs:", OUT)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

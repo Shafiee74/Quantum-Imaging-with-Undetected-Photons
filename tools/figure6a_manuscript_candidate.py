@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""Figure 6(a) from the saved candidate images and the corrected frequency rule.
+"""Historical Figure 6(a) candidate helper (not the public publication path).
 
-The simulated 20 µm point is the analytical phase gradient. Every other
-nonzero frequency is the mean adjacent bright-center spacing. Simulation uses
-the uniform 20% prominence gate. The approved article-figure files are not written.
+**Authoritative path:** ``python tools/reproduce_figure6a.py --compute/--verify``.
+
+Running this script as ``__main__`` requires ``--allow-historical`` and writes
+only under ``reproducibility/figure6a/historical/``.
 """
 from __future__ import annotations
 
+import argparse
 import csv
 import sys
 from pathlib import Path
@@ -33,13 +35,10 @@ from tools.publication_graphics_style import (
     style_reference_axes,
 )
 
-OUT = ROOT / "Figure6a_Manuscript"
+HIST_DIR = ROOT / "reproducibility" / "figure6a" / "historical" / "Figure6a_Manuscript"
+OUT = HIST_DIR
 NPZ = ROOT / "Figure6a_Transverse_Phase_Candidate" / "Candidate_I_minus_display.npz"
-EXP_CSV = (
-    ROOT
-    / "Figure6a_Experimental_Fringe_Center_Correction"
-    / "Experimental_Frequency_Comparison.csv"
-)
+EXP_CSV = ROOT / "reproducibility" / "figure6a" / "reference" / "Experimental_Frequency_Comparison.csv"
 LAMBDA_S_UM = 0.810
 F_C_UM = 150.0e3
 CAPTION = (
@@ -127,7 +126,28 @@ def draw(theory: dict[float, np.ndarray], exp: dict[float, np.ndarray], sim_k: l
     plt.close(fig)
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--allow-historical",
+        action="store_true",
+        help="Write under reproducibility/figure6a/historical/ only",
+    )
+    args = parser.parse_args(argv)
+    if not args.allow_historical:
+        print(
+            "OBSOLETE publication entry point.\n"
+            "Use: python tools/reproduce_figure6a.py --compute / --verify\n"
+            f"Pass --allow-historical only for archives under {HIST_DIR.as_posix()}."
+        )
+        return 2
+    if not NPZ.is_file():
+        print(f"Historical candidate NPZ not present: {NPZ}")
+        return 2
+    if not EXP_ROOT.is_dir():
+        print(f"Private EMCCD root required for historical candidate replot: {EXP_ROOT}")
+        return 2
+
     OUT.mkdir(parents=True, exist_ok=True)
     archive = np.load(NPZ)
     theory = {float(dx): archive["I_minus"][i] for i, dx in enumerate(archive["displacements_um"])}
@@ -145,6 +165,7 @@ def main() -> None:
         analytical = analytical_kappa_per_mm(dx)
         exp_text = exp_rows[dx]["corrected_periodic_frequency_cycles_per_mm"]
         exp_measured = float(exp_text) if exp_text not in ("", "nan") else float("nan")
+        spacing_text = exp_rows[dx].get("mean_adjacent_spacing_mm", "")
         if dx == 0.0:
             plotted_sim = 0.0
             plotted_exp = 0.0
@@ -177,7 +198,7 @@ def main() -> None:
                 "experiment_n_centers": int(exp_rows[dx]["corrected_n_centers"]),
                 "experiment_plotted_frequency_cycles_per_mm": plotted_exp,
                 "experiment_frequency_source": exp_source,
-                "experiment_mean_spacing_mm": exp_rows[dx]["mean_adjacent_spacing_mm"],
+                "experiment_mean_spacing_mm": spacing_text,
             }
         )
     nonzero = [r for r in rows if r["dx_um"] > 0]
@@ -189,14 +210,17 @@ def main() -> None:
     draw(theory, exp, sim_k, exp_k)
     print(
         {
+            "mode": "historical_only",
             "sim_k": sim_k,
             "exp_k": exp_k,
             "mae": float(np.mean(np.abs(err))),
             "rmse": float(np.sqrt(np.mean(err**2))),
             "dx0_mean": float(np.mean(theory[0.0])),
+            "outputs": str(OUT),
         }
     )
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
