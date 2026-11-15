@@ -1,0 +1,7 @@
+lens_displacement_um,corrected_n_centers,corrected_periodic_frequency_cycles_per_mm,corrected_plotted_frequency_cycles_per_mm,mean_spacing_mm,measurement_status,source
+0.0,1,,0.0,,reference_zero_no_fringe_modulation,manuscript_derived_table_S2_public
+20.0,2,0.429938,0.429938,2.325900,measured,manuscript_derived_table_S2_public
+30.0,3,0.549472,0.549472,1.819900,measured,manuscript_derived_table_S2_public
+40.0,5,0.785464,0.785464,1.273100,measured,manuscript_derived_table_S2_public
+60.0,7,0.968635,0.968635,1.032400,measured,manuscript_derived_table_S2_public
+180.0,21,3.043022,3.043022,0.328600,measured,manuscript_derived_table_S2_public

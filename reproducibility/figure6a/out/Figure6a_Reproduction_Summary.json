@@ -1,0 +1,37 @@
+{
+  "mode": "public",
+  "mae_cycles_per_mm": 0.052147599825735164,
+  "rmse_cycles_per_mm": 0.05464616517740023,
+  "mae_all_nonzero_including_analytical_20um": 0.061862058461411185,
+  "rmse_all_nonzero_including_analytical_20um": 0.06646699981365681,
+  "mae_convention": "image_derived_nonzero_only_excludes_analytical_20um",
+  "sources": [
+    "aligned_reference_convention",
+    "analytical_phase_gradient",
+    "image_center_spacing_20_percent",
+    "image_center_spacing_20_percent",
+    "image_center_spacing_20_percent",
+    "image_center_spacing_20_percent"
+  ],
+  "plotted_sim": [
+    0.0,
+    0.3292181069958847,
+    0.5849663644340449,
+    0.7222824124232574,
+    1.005530417295123,
+    2.97000297000297
+  ],
+  "plotted_exp": [
+    0.0,
+    0.429938,
+    0.549472,
+    0.785464,
+    0.968635,
+    3.043022
+  ],
+  "png": "D:\\Quantum\\Quantum\\QIUP_Synthetic_Dataset\\Ver1.3.4(Digital_Twin_Verification)\\DT_version 3.4.2_12Nov\\reproducibility\\figure6a\\out\\Figure6a_Final.png",
+  "pdf": "D:\\Quantum\\Quantum\\QIUP_Synthetic_Dataset\\Ver1.3.4(Digital_Twin_Verification)\\DT_version 3.4.2_12Nov\\reproducibility\\figure6a\\out\\Figure6a_Final.pdf",
+  "dx0_mean": 0.18390471477711387,
+  "optics_sha256": "bd89fe2e30eea3669bbd06afc2cd2d48b00c1a902ad1057c9dff295793e1fb43",
+  "note": "Experimental image strip omitted: raw EMCCD TIFFs are restricted. Frequency markers use reproducibility/figure6a derived CSV. Hollow circle = analytical 20 \u00b5m simulation point."
+}
