@@ -19,9 +19,9 @@
   These files are not included in the public repository.
   Laboratory data directory: `exp data/` (gitignored).
 
-The derived experimental measurements and associated
-analysis documentation are publicly available through
-the GitHub repository.
+  The derived experimental measurements and associated
+  analysis documentation are publicly available through
+  the GitHub repository.
 
 
 ## What a clean checkout can reproduce without EMCCD
