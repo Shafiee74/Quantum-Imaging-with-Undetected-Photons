@@ -15,12 +15,14 @@
 
 ## Restricted (not published on GitHub)
 
-- Original laboratory **EMCCD TIFF** stacks used for Figures 5–6 experimental panels  
-  Path conventionally used on lab machines: `exp data/` (gitignored)
+- Original laboratory **EMCCD TIFF** images used for the experimental panels in Figures 5–6.
+  These files are not included in the public repository.
+  Laboratory data directory: `exp data/` (gitignored).
 
-**Why:** Authors and supervisors agreed not to publish the original EMCCD datasets.
+The derived experimental measurements and associated
+analysis documentation are publicly available through
+the GitHub repository.
 
-**Controlled access:** Available on reasonable request to the corresponding author / laboratory PI for editorial or reproducibility review. The public repository intentionally does **not** redistribute raw frames.
 
 ## What a clean checkout can reproduce without EMCCD
 
