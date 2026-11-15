@@ -1,5 +1,12 @@
 # Experimental center audit scope (Table S3 / Word §4)
 
+## Caption correction (important)
+
+Do **not** state that full-precision fringe-center positions, individual
+spacings, or peak-selection audit CSVs are publicly available. The public
+repository ships only the **derived** accepted-center counts and frequencies.
+Paste-ready SI caption text: `TABLE_S3_CAPTION_CORRECTION.md`.
+
 ## What is public
 
 `Experimental_Frequency_Comparison.csv` is the **derived** Supplementary Table S3

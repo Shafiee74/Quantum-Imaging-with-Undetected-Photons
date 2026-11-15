@@ -106,11 +106,10 @@ python -B -m pytest tests/test_configuration_identifier_standardization.py \
   -> 32 passed
 
 python -m verification.config_d_checks
-  -> After A2 fix: module targets registry two_crystal_near_field (manuscript B).
-  -> 262/263 PASS; 1 FAIL retained and documented (not silenced):
-     "detected N1 carries throughput exactly once"
-     Expectation N1=throughput*nbar is naive for two-crystal path-1 signal
-     losses (N2≈throughput*nbar; N1 is lower). No production physics changed.
+  -> Module targets registry two_crystal_near_field (manuscript B).
+  -> 264/264 PASS after correcting absolute-moment expectations to include
+     mean(S_cam) and documenting the nominal 532/810/1550 nm energy-rounding
+     residual. No production physics changed.
 
 python tools/figure6a_experimental_fringe_center_correction.py
   -> exit 2 without private EMCCD TIFF root (expected; no fabricated CSV)

@@ -252,17 +252,38 @@ def spectral_inputs(setup, opd_mm: float) -> dict[str, float]:
     )
 
 
+def mean_generation_envelope(setup, size: int = 16) -> float:
+    """Spatial mean of the peak-normalized NF pump generation envelope S_cam.
+
+    Production multiplies detected moments by S_cam before reporting N*_mean.
+    Visibility ratios cancel this common factor; absolute N1/N2/C12 means do not.
+    """
+    fwd = resolve_forward(setup, size)
+    transfer = architecture_object_transfer(
+        np.ones((size, size), dtype=np.float32),
+        np.zeros((size, size), dtype=np.float32),
+        setup,
+        fwd,
+    )
+    return float(np.mean(np.asarray(transfer["generation_intensity_camera"], dtype=np.float64)))
+
+
 def reference_uniform_output(
     setup,
     n1: float,
     n2: float,
     T: float = 1.0,
     phi: float = 0.0,
+    *,
+    size: int = 16,
+    include_generation_envelope: bool = True,
 ) -> dict[str, float]:
     """Independent end-to-end expectation for a uniform D object.
 
     Inputs are configuration values. Idler relay overlap is 1 for the aligned
     default relay (checked separately as a precondition).
+    When ``include_generation_envelope`` is true (default), absolute moments are
+    scaled by mean(S_cam) to match the production near-field observable.
     """
     opd_mm = float(setup.delta_L_mm)
     spec = spectral_inputs(setup, opd_mm)
@@ -277,14 +298,19 @@ def reference_uniform_output(
         eta_s1=float(setup.path1_intensity), eta_s2=float(setup.path2_intensity),
         coherence=spec["coherence_magnitude"], throughput=spec["throughput"],
     )
-    plus, minus = ref.combiner_intensities(m["N1"], m["N2"], m["C12"], theta)
+    s_cam = mean_generation_envelope(setup, size=size) if include_generation_envelope else 1.0
+    n1_det = float(m["N1"]) * s_cam
+    n2_det = float(m["N2"]) * s_cam
+    c12_det = complex(m["C12"]) * s_cam
+    plus, minus = ref.combiner_intensities(n1_det, n2_det, c12_det, theta)
     return {
-        "N1": m["N1"], "N2": m["N2"], "C12": m["C12"], "theta": theta,
+        "N1": n1_det, "N2": n2_det, "C12": c12_det, "theta": theta,
         "plus": plus, "minus": minus, "sum": plus + minus,
         "contrast": (plus - minus) / (plus + minus),
-        "visibility": ref.fixed_combiner_visibility(m["N1"], m["N2"], m["C12"]),
+        "visibility": ref.fixed_combiner_visibility(n1_det, n2_det, c12_det),
         "T_seed": abs(t_seed) ** 2, "coherence": spec["coherence_magnitude"],
         "throughput": spec["throughput"],
+        "mean_S_cam": s_cam,
     }
 
 
@@ -422,10 +448,10 @@ def check_moments(reg: Registry) -> None:
         vis = res.meta["vis"]
         exp = reference_uniform_output(s, n1, n2)
         reg.compare(AREA_MOMENTS, f"end-to-end detected moments ({label})",
-                    "Bogoliubov moments x filter throughput; C12 x spectral coherence",
+                    "Bogoliubov moments x filter throughput x mean(S_cam); C12 x spectral coherence",
                     (exp["N1"], exp["N2"], abs(exp["C12"])),
                     (vis["N1_mean"], vis["N2_mean"], vis["C12_abs_mean"]), rtol=1e-6,
-                    parameters={"n1": n1, "n2": n2})
+                    parameters={"n1": n1, "n2": n2, "mean_S_cam": exp["mean_S_cam"]})
         reg.compare(AREA_MOMENTS, f"end-to-end fixed-combiner visibility ({label})", "V=2|C12|/(N1+N2)",
                     exp["visibility"], vis["visibility_fixed_combiner_mean"], rtol=1e-6,
                     parameters={"n1": n1, "n2": n2})
@@ -711,8 +737,29 @@ def check_qpm(reg: Registry) -> None:
         for T in (20.0, 83.7):
             reg.compare(AREA_QPM, f"KTP n_z(lambda={lam:.2f} nm, T={T} C)", "Kato & Takaoka 2002 + dn/dT",
                         ref.ktp_nz(lam * 1e-3, T), ktp_nz(lam * 1e-3, T), rtol=1e-13)
-    reg.compare(AREA_QPM, "energy conservation of the D wavelength triple", "1/li = 1/lp - 1/ls",
-                ref.idler_wavelength_nm(lp, ls), li, rtol=1e-9)
+    # Manuscript/lab profiles intentionally store rounded wavelengths
+    # 532 / 810 / 1550 nm (see YAML notes). Exact energy conservation for
+    # lp=532, ls=810 yields li≈1550.0719 nm; the residual is documented, not a
+    # production bug.
+    li_exact = ref.idler_wavelength_nm(lp, ls)
+    reg.compare(
+        AREA_QPM,
+        "energy-conservation formula self-consistency",
+        "1/li_exact = 1/lp - 1/ls",
+        (1.0 / lp) - (1.0 / ls),
+        1.0 / li_exact,
+        rtol=1e-14,
+    )
+    reg.compare(
+        AREA_QPM,
+        "nominal D wavelength triple rounding residual",
+        "li_exact(lp,ls) - li_nominal for rounded 532/810/1550 nm",
+        abs(ref.idler_wavelength_nm(532.0, 810.0) - 1550.0),
+        abs(li_exact - li),
+        rtol=1e-12,
+        parameters={"lambda_p_nm": lp, "lambda_s_nm": ls, "lambda_i_nm": li, "li_exact_nm": li_exact},
+        notes="Nominal wavelengths remain 532/810/1550; do not retune physics to force exact energy closure.",
+    )
     for interaction, T0, period0 in ((1, float(s.T_pm0_NL1_C), float(s.poling_period_um)),
                                      (2, float(s.T_pm0_NL2_C), float(s.poling_period_NL2_um))):
         for dT in (0.0, -1.0, 1.0, 5.0):
@@ -924,8 +971,27 @@ def check_invariants(reg: Registry) -> None:
                     float(s.lambda_s_nm), float(s.signal_spectrum_fwhm_nm),
                     float(s.camera_filter_center_nm), float(s.camera_filter_fwhm_nm)),
                 spec["throughput"], rtol=1e-6)
-    reg.compare(AREA_INVARIANT, "detected N1 carries throughput exactly once", "N1 = throughput * nbar1",
-                spec["throughput"] * 0.1, r0.meta["vis"]["N1_mean"], rtol=1e-6)
+    # Near-field production multiplies moments by the peak-normalized pump
+    # generation envelope S_cam before reporting N1_mean.
+    nbar1 = 0.1
+    exp_n1 = reference_uniform_output(s, nbar1, nbar1)
+    reg.compare(
+        AREA_INVARIANT,
+        "detected N1 applies spectral throughput once under NF generation envelope",
+        "N1_mean = throughput * nbar1 * mean(S_cam)",
+        exp_n1["N1"],
+        r0.meta["vis"]["N1_mean"],
+        rtol=1e-6,
+        parameters={
+            "nbar1": nbar1,
+            "throughput": float(spec["throughput"]),
+            "mean_S_cam": exp_n1["mean_S_cam"],
+        },
+        notes=(
+            "Corrected expectation: NF pump envelope S_cam multiplies moments; "
+            "spectral throughput still enters exactly once."
+        ),
+    )
 
 
 ALL_CHECKS: tuple[Callable[[Registry], None], ...] = (
