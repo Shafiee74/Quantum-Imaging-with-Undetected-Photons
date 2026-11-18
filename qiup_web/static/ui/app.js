@@ -318,13 +318,24 @@
     state.enlarge = same ? null : next;
     renderEnlarge();
     syncEnlargeButtons();
-    if (same) {
-      restoreScrollAfterEnlarge();
-    } else if (state.enlarge) {
+    // Keep the page at the same scroll place; enlarge is a fixed overlay.
+    if (same) restoreScrollAfterEnlarge();
+    else if (state.enlarge) restoreScrollAfterEnlargePreserve();
+  }
+
+  function restoreScrollAfterEnlargePreserve() {
+    const saved = state.scrollBeforeEnlarge;
+    if (!saved) return;
+    const apply = () => {
       const main = mainScrollEl();
-      if (main) main.scrollTop = 0;
-      window.scrollTo(0, 0);
-    }
+      if (main && Number.isFinite(saved.main)) main.scrollTop = saved.main;
+      if (Number.isFinite(saved.window)) window.scrollTo(0, saved.window);
+    };
+    apply();
+    window.requestAnimationFrame(() => {
+      apply();
+      window.setTimeout(apply, 0);
+    });
   }
 
   function teardownEnlargeChart() {
@@ -697,7 +708,7 @@
     view.classList.toggle("is-architecture", isArchitecture);
     if (isArchitecture) {
       title.textContent = `Arrangement ${en.id} · full architecture`;
-      sub.textContent = `${state.defaults?.profiles?.[en.id]?.label || ""} · shown in simulation panel`;
+      sub.textContent = `${state.defaults?.profiles?.[en.id]?.label || ""} · Esc or Close to return`;
       body.innerHTML = enlargeImageHtml(
         ARCHITECTURE_SRC[en.id],
         `Architecture ${en.id}`,
