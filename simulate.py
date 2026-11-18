@@ -125,6 +125,10 @@ class SimResult:
     detector_signal_image: np.ndarray | None = None
     clean_reference_image: np.ndarray | None = None
     reconstructed_phase_rad: np.ndarray | None = None
+    phase_modulation: np.ndarray | None = None
+    visibility_map: np.ndarray | None = None
+    T_eff_map: np.ndarray | None = None
+    phi_eff_map: np.ndarray | None = None
     selected_output_port: str = "plus"
 
 
@@ -356,6 +360,7 @@ def simulate_forward(
     clean_D = clean_stack[mid].astype(np.float32)
 
     reconstructed_phase_rad = None
+    phase_modulation = None
     phase_reconstruction_meta: dict[str, Any] = {
         "enabled": False,
         "reason": "phase_step_protocol_off",
@@ -363,6 +368,7 @@ def simulate_forward(
     if phase_schedule is not None:
         rec = reconstruct_phase_from_phase_steps(D, phase_schedule)
         reconstructed_phase_rad = rec["phase_rad"]
+        phase_modulation = np.asarray(rec["modulation"], dtype=np.float64)
         phase_reconstruction_meta = {
             "enabled": True,
             "method": rec["method"],
@@ -716,6 +722,14 @@ def simulate_forward(
         detector_signal_image=detector_signal_image,
         clean_reference_image=clean_reference_image,
         reconstructed_phase_rad=reconstructed_phase_rad,
+        phase_modulation=phase_modulation,
+        visibility_map=(
+            np.asarray(last_opt["V_map"], dtype=np.float64)
+            if last_opt.get("V_map") is not None
+            else None
+        ),
+        T_eff_map=np.asarray(T_eff, dtype=np.float64),
+        phi_eff_map=np.asarray(phi_eff, dtype=np.float64),
         selected_output_port=selected_output_port,
     )
 

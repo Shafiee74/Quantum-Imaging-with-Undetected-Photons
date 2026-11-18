@@ -1,7 +1,7 @@
 "use client";
 
-import { AlertTriangle, Download, Loader2, Maximize2, X } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { AlertTriangle, Download, Loader2, Maximize2, Minimize2 } from "lucide-react";
+import type { ReactNode } from "react";
 import { formatStat } from "@/lib/params";
 import type { ImagePayload, ThermalRow } from "@/lib/types";
 import { Badge, cx } from "./ui";
@@ -25,31 +25,6 @@ function Colorbar({ min, max }: { min: number; max: number }) {
   );
 }
 
-function Lightbox({ src, title, onClose }: { src: string; title: string; onClose: () => void }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-  return (
-    <div
-      className="fixed inset-0 z-[100] grid place-items-center bg-black/80 p-8 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div className="glass fade-up rounded-2xl p-4" onClick={(e) => e.stopPropagation()}>
-        <div className="mb-3 flex items-center justify-between gap-6">
-          <h4 className="text-sm font-semibold text-white">{title}</h4>
-          <button type="button" onClick={onClose} className="rounded-md p-1 text-ink-400 hover:bg-ink-700 hover:text-white">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt={title} className="pixelated h-[min(75vh,720px)] w-[min(75vh,720px)] rounded-lg" />
-      </div>
-    </div>
-  );
-}
-
 export function ImageCard({
   title,
   subtitle,
@@ -57,6 +32,8 @@ export function ImageCard({
   tone,
   fileName,
   footer,
+  enlarged = false,
+  onToggleEnlarge,
 }: {
   title: string;
   subtitle?: ReactNode;
@@ -64,14 +41,16 @@ export function ImageCard({
   tone: "ideal" | "noisy" | "object";
   fileName: string;
   footer?: ReactNode;
+  /** When true, this card is expanded into the simulation panel (controlled by parent). */
+  enlarged?: boolean;
+  onToggleEnlarge?: () => void;
 }) {
-  const [zoom, setZoom] = useState(false);
   const src = state.status === "done" ? `data:image/png;base64,${state.image.png}` : null;
   const toneRing = { ideal: "ring-emerald-400/25", noisy: "ring-rose-400/25", object: "ring-sky-400/25" }[tone];
   const toneBadge = { ideal: "green", noisy: "rose", object: "sky" }[tone] as "green" | "rose" | "sky";
 
   return (
-    <div className={cx("glass fade-up flex flex-col rounded-xl p-3 ring-1", toneRing)}>
+    <div className={cx("glass fade-up flex min-w-0 flex-col rounded-xl p-3 ring-1", toneRing, enlarged && "ring-sky-400/50")}>
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
@@ -82,14 +61,19 @@ export function ImageCard({
         </div>
         {src && (
           <div className="flex shrink-0 gap-0.5">
-            <button
-              type="button"
-              title="Enlarge"
-              onClick={() => setZoom(true)}
-              className="rounded-md p-1 text-ink-400 hover:bg-ink-700 hover:text-white"
-            >
-              <Maximize2 className="h-3.5 w-3.5" />
-            </button>
+            {onToggleEnlarge && (
+              <button
+                type="button"
+                title={enlarged ? "Shrink back to grid" : "Enlarge to fill simulation panel"}
+                onClick={onToggleEnlarge}
+                className={cx(
+                  "rounded-md p-1 hover:bg-ink-700",
+                  enlarged ? "text-sky-300" : "text-ink-400 hover:text-white",
+                )}
+              >
+                {enlarged ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+              </button>
+            )}
             <a
               title="Download PNG"
               href={src}
@@ -108,8 +92,8 @@ export function ImageCard({
           <img
             src={src}
             alt={title}
-            className="pixelated h-full w-full cursor-zoom-in"
-            onClick={() => setZoom(true)}
+            className={cx("pixelated h-full w-full", onToggleEnlarge && "cursor-zoom-in")}
+            onClick={onToggleEnlarge}
           />
         )}
         {state.status === "running" && (
@@ -146,9 +130,9 @@ export function ImageCard({
           {state.thermal && state.thermal.length > 0 && (
             <div className="mt-2 space-y-0.5 rounded-md bg-ink-950/60 px-2 py-1.5 font-mono text-[10px] text-ink-300">
               {state.thermal.map((row) => (
-                <div key={row.crystal} className="flex justify-between">
-                  <span className="text-ink-400">{row.crystal}</span>
-                  <span>
+                <div key={row.crystal} className="flex justify-between gap-2">
+                  <span className="shrink-0 text-ink-400">{row.crystal}</span>
+                  <span className="min-w-0 break-words text-right">
                     T<sub>pm</sub> {row.T_pm_C?.toFixed(2) ?? "—"} · T {row.T_crystal_C?.toFixed(2) ?? "—"} °C
                   </span>
                 </div>
@@ -158,7 +142,6 @@ export function ImageCard({
         </>
       )}
       {footer}
-      {zoom && src && <Lightbox src={src} title={title} onClose={() => setZoom(false)} />}
     </div>
   );
 }

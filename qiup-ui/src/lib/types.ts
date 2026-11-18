@@ -53,7 +53,9 @@ export interface ThermalRow {
 
 export type ObjectSpec =
   | { source: "mnist"; mnist_index: number }
-  | { source: "mask"; mask_id: number };
+  | { source: "mask"; mask_id: number }
+  | { source: "rabbit" }
+  | { source: "upload"; png_base64: string; file_name?: string };
 
 export interface RunConfig {
   profiles: ProfileId[];
@@ -70,9 +72,10 @@ export interface RunConfig {
 
 export interface ObjectEvent {
   type: "object";
-  source: "mnist" | "mask";
+  source: "mnist" | "mask" | "rabbit" | "upload";
   mnist_index?: number;
   mask_id?: number;
+  file_name?: string;
   label: number | string;
   origin?: string;
   image: ImagePayload;
@@ -89,9 +92,9 @@ export interface ResultEvent {
 }
 
 export type RunEvent =
-  | { type: "start"; total: number; profiles: ProfileId[]; modes: Mode[]; output_dir: string }
+  | { type: "start"; total: number; profiles: ProfileId[]; modes: Mode[]; output_dir?: string | null; persisted?: boolean }
   | ObjectEvent
   | { type: "progress"; profile: ProfileId; mode: Mode }
   | ResultEvent
   | { type: "error"; profile?: ProfileId; mode?: Mode; message: string }
-  | { type: "done"; elapsed_s: number; output_dir: string };
+  | { type: "done"; elapsed_s: number; output_dir?: string | null; persisted?: boolean };

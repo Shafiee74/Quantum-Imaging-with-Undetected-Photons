@@ -12,8 +12,10 @@ import {
   Sparkles,
   Sun,
   Thermometer,
+  Upload,
   Waves,
 } from "lucide-react";
+import { useRef, useState } from "react";
 import { GEOMETRY, MAGNIFICATION, NOISE_GROUPS, SOURCE } from "@/lib/params";
 import type { Defaults, ObjectSpec, ParamDict, ParamValue, ProfileId } from "@/lib/types";
 import { ArrangementCard } from "./ArrangementCard";
@@ -30,10 +32,14 @@ export function ArrangementsPanel({
   defaults,
   selected,
   onChange,
+  archEnlarge,
+  onToggleArchEnlarge,
 }: {
   defaults: Defaults;
   selected: ProfileId[];
   onChange: (next: ProfileId[]) => void;
+  archEnlarge?: ProfileId | null;
+  onToggleArchEnlarge?: (id: ProfileId) => void;
 }) {
   const toggle = (id: ProfileId) =>
     onChange(selected.includes(id) ? selected.filter((p) => p !== id) : PROFILE_IDS.filter((p) => p === id || selected.includes(p)));
@@ -52,13 +58,42 @@ export function ArrangementsPanel({
         </button>
       }
     >
-      <div className="grid grid-cols-2 gap-2">
-        {PROFILE_IDS.map((id) => (
-          <ArrangementCard key={id} profile={defaults.profiles[id]} selected={selected.includes(id)} onToggle={() => toggle(id)} />
-        ))}
+      <div className="scroll-thin max-h-[min(42vh,360px)] overflow-y-auto pr-0.5">
+        <div className="grid grid-cols-2 gap-2">
+          {PROFILE_IDS.map((id) => (
+            <ArrangementCard
+              key={id}
+              profile={defaults.profiles[id]}
+              selected={selected.includes(id)}
+              onToggle={() => toggle(id)}
+              archEnlarged={archEnlarge === id}
+              onToggleArchEnlarge={onToggleArchEnlarge ? () => onToggleArchEnlarge(id) : undefined}
+            />
+          ))}
+        </div>
       </div>
     </Panel>
   );
+}
+
+type ObjectSourceTab = ObjectSpec["source"];
+
+function fileToPngBase64(file: File): Promise<{ png_base64: string; file_name: string }> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("failed to read file"));
+    reader.onload = () => {
+      const result = String(reader.result || "");
+      const comma = result.indexOf(",");
+      const png_base64 = comma >= 0 ? result.slice(comma + 1) : result;
+      if (!png_base64) {
+        reject(new Error("empty file"));
+        return;
+      }
+      resolve({ png_base64, file_name: file.name || "upload.png" });
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 export function ObjectPanel({
@@ -70,22 +105,68 @@ export function ObjectPanel({
   onChange: (next: ObjectSpec) => void;
   maxIndex: number;
 }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const index = object.source === "mnist" ? object.mnist_index : 5;
+  const maskId = object.source === "mask" ? object.mask_id : 5;
   const setIndex = (i: number) =>
     onChange({ source: "mnist", mnist_index: Math.min(maxIndex - 1, Math.max(0, Math.round(i))) });
+
+  const setSource = (source: ObjectSourceTab) => {
+    setUploadError(null);
+    if (source === "mnist") onChange({ source, mnist_index: index });
+    else if (source === "mask") onChange({ source, mask_id: maskId });
+    else if (source === "rabbit") onChange({ source: "rabbit" });
+    else if (source === "upload") {
+      if (object.source === "upload") return;
+      onChange({ source: "upload", png_base64: "", file_name: undefined });
+    }
+  };
+
+  const onPickFile = async (file: File | null) => {
+    if (!file) return;
+    setUploadError(null);
+    try {
+      if (!file.type.startsWith("image/")) {
+        throw new Error("please choose an image file (PNG preferred)");
+      }
+      const { png_base64, file_name } = await fileToPngBase64(file);
+      onChange({ source: "upload", png_base64, file_name });
+    } catch (e) {
+      setUploadError((e as Error).message);
+    }
+  };
+
   return (
     <Panel icon={<Shapes className="h-4 w-4" />} title="SLM object" subtitle="Amplitude pattern written on the SLM">
-      <Segmented
-        value={object.source}
-        onChange={(source) => onChange(source === "mnist" ? { source, mnist_index: index } : { source, mask_id: 5 })}
-        options={[
-          { value: "mnist", label: "MNIST digit" },
-          { value: "mask", label: "Catalog mask" },
-        ]}
-      />
-      {object.source === "mnist" ? (
+      <div className="grid grid-cols-2 gap-1 rounded-lg bg-ink-900/80 p-1 ring-1 ring-white/5">
+        {(
+          [
+            { value: "mnist", label: "MNIST" },
+            { value: "mask", label: "Catalog" },
+            { value: "rabbit", label: "Rabbit" },
+            { value: "upload", label: "Upload" },
+          ] as const
+        ).map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => setSource(opt.value)}
+            className={cx(
+              "rounded-md px-2 py-1.5 text-[11px] font-medium transition-all",
+              object.source === opt.value
+                ? "bg-ink-700 text-white shadow ring-1 ring-white/10"
+                : "text-ink-400 hover:text-ink-200",
+            )}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      {object.source === "mnist" && (
         <div className="flex items-end gap-2">
-          <div className="flex-1">
+          <div className="min-w-0 flex-1">
             <NumberField
               label="MNIST index"
               value={index}
@@ -113,7 +194,9 @@ export function ObjectPanel({
             ))}
           </div>
         </div>
-      ) : (
+      )}
+
+      {object.source === "mask" && (
         <div className="grid grid-cols-5 gap-1.5">
           {Array.from({ length: 10 }, (_, i) => i + 1).map((id) => (
             <button
@@ -122,7 +205,7 @@ export function ObjectPanel({
               onClick={() => onChange({ source: "mask", mask_id: id })}
               className={cx(
                 "rounded-lg py-2 font-mono text-sm transition-all",
-                object.source === "mask" && object.mask_id === id
+                object.mask_id === id
                   ? "bg-sky-400 font-bold text-ink-950"
                   : "bg-ink-800 text-ink-300 ring-1 ring-white/5 hover:bg-ink-700",
               )}
@@ -130,6 +213,40 @@ export function ObjectPanel({
               {id}
             </button>
           ))}
+        </div>
+      )}
+
+      {object.source === "rabbit" && (
+        <div className="rounded-lg bg-ink-900/60 p-3 text-[11px] leading-relaxed text-ink-300 ring-1 ring-white/5">
+          Built-in rabbit amplitude mask from <code className="break-all text-sky-300">public/test-masks/rabbit-slm-mask.png</code>.
+          Resized to the simulation grid with aspect ratio preserved and zero padding.
+        </div>
+      )}
+
+      {object.source === "upload" && (
+        <div className="space-y-2">
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/bmp,.png,.jpg,.jpeg,.webp,.bmp"
+            className="hidden"
+            onChange={(e) => void onPickFile(e.target.files?.[0] ?? null)}
+          />
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-ink-800 px-3 py-2.5 text-[12px] text-ink-200 ring-1 ring-white/5 hover:bg-ink-700 hover:text-white"
+          >
+            <Upload className="h-4 w-4" />
+            {object.png_base64 ? "Replace mask image" : "Upload SLM mask"}
+          </button>
+          {object.file_name && (
+            <p className="break-all font-mono text-[11px] text-sky-300">{object.file_name}</p>
+          )}
+          {!object.png_base64 && (
+            <p className="text-[11px] text-ink-400">Choose a grayscale / binary amplitude mask (not an RGB photo).</p>
+          )}
+          {uploadError && <p className="text-[11px] text-rose-300">{uploadError}</p>}
         </div>
       )}
     </Panel>

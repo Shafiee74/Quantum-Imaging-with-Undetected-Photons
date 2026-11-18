@@ -9,4 +9,6 @@ urlpatterns = [
     path("preview/", views.preview_view, name="api-preview-slash"),
     path("run", views.run_view, name="api-run"),
     path("run/", views.run_view, name="api-run-slash"),
+    path("diagnostics", views.diagnostics_view, name="api-diagnostics"),
+    path("diagnostics/", views.diagnostics_view, name="api-diagnostics-slash"),
 ]

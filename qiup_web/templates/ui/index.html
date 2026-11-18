@@ -5,23 +5,39 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>QIUP Simulator · Django UI</title>
-  <link rel="stylesheet" href="{% static 'ui/app.css' %}" />
+  <link rel="icon" href="{% static 'ui/img/favicon.svg' %}" type="image/svg+xml" />
+  <link rel="stylesheet" href="{% static 'ui/app.css' %}?v=20261118d" />
+  <script>
+    window.QIUP_STATIC = "{% static 'ui/' %}";
+  </script>
 </head>
 <body>
   <div id="app">
     <header class="topbar">
       <div class="brand">
-        <div class="logo">Ψ</div>
-        <div>
-          <h1>QIUP Simulator <span id="version-badge" class="badge">…</span>
-            <span class="badge amber">prototype · pre-validation</span>
-          </h1>
+        <div class="brand-logos">
+          <div class="logo" title="QIUP" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="1"></circle>
+              <path d="M20.2 20.2c2.04-2.03.02-7.36-4.5-11.9-4.54-4.52-9.87-6.54-11.9-4.5-2.04 2.03-.02 7.36 4.5 11.9 4.54 4.52 9.87 6.54 11.9 4.5Z"></path>
+              <path d="M15.7 15.7c4.52-4.54 6.54-9.87 4.5-11.9-2.03-2.04-7.36-.02-11.9 4.5-4.52 4.54-6.54 9.87-4.5 11.9 2.03 2.04 7.36.02 11.9-4.5Z"></path>
+            </svg>
+          </div>
+          <img class="partner-logo" src="{% static 'ui/img/CQST_Logo.png' %}" alt="CQST" />
+          <img class="partner-logo" src="{% static 'ui/img/CIDAIT_Logo.png' %}" alt="CIDAIT" />
+        </div>
+        <div class="brand-text">
+          <h1>QIUP Simulator <span id="version-badge" class="badge">…</span></h1>
           <p class="sub" id="calib-line">Quantum imaging with undetected photons · four-arrangement simulator</p>
         </div>
       </div>
       <div class="actions">
         <span id="backend-pill" class="pill">backend · django</span>
+        <span id="viewport-pill" class="pill viewport-pill" title="Browser viewport">—</span>
+        <button type="button" id="btn-team" class="btn ghost" title="Development team">Team</button>
         <button type="button" id="btn-config" class="btn ghost" title="Download run config JSON">Config</button>
+        <button type="button" id="btn-config-load" class="btn ghost" title="Load run config JSON">Load</button>
+        <input type="file" id="config-upload-input" accept="application/json,.json" hidden />
         <button type="button" id="btn-reset" class="btn ghost">Reset</button>
         <button type="button" id="btn-stop" class="btn danger hidden">Stop</button>
         <button type="button" id="btn-run" class="btn primary">Run simulation</button>
@@ -38,41 +54,371 @@
       </aside>
 
       <main class="main">
-        <section class="grid-2">
-          <div class="card image-card">
-            <div class="image-head">
-              <strong id="preview-title">SLM object</strong>
-              <span id="preview-sub" class="muted"></span>
+        <section id="sim-panel" class="sim-panel">
+          <div id="enlarge-view" class="enlarge-view hidden">
+            <div class="enlarge-head">
+              <div>
+                <strong id="enlarge-title">Enlarged view</strong>
+                <div id="enlarge-sub" class="muted"></div>
+              </div>
+              <button type="button" id="btn-enlarge-close" class="btn tiny ghost" title="Close enlarged view (Esc)">Close ✕</button>
             </div>
-            <div id="preview-box" class="image-box">Waiting…</div>
+            <div id="enlarge-body" class="enlarge-body"></div>
           </div>
-          <div class="card">
-            <div class="image-head">
-              <strong>Run status</strong>
-              <span id="run-badge" class="badge">idle</span>
-            </div>
-            <div class="metrics">
-              <div><span class="muted">Arrangements</span><div id="m-profiles">—</div></div>
-              <div><span class="muted">Progress</span><div id="m-progress">—</div></div>
-              <div><span class="muted">Wall time</span><div id="m-elapsed">—</div></div>
-              <div><span class="muted">Noise preset</span><div id="m-preset">moderate</div></div>
-            </div>
-            <div id="output-dir" class="path hidden"></div>
-            <pre id="log" class="log">Press Run simulation or Ctrl+Enter.</pre>
+
+          <div id="sim-normal" class="sim-normal">
+            <section class="grid-2 top-row">
+              <div class="card image-card" id="preview-card">
+                <div class="image-head">
+                  <div class="min-w-0">
+                    <strong id="preview-title">SLM object</strong>
+                    <span id="preview-sub" class="muted"></span>
+                  </div>
+                  <button
+                    type="button"
+                    class="icon-btn enlarge-btn"
+                    data-enlarge="preview"
+                    title="Enlarge to fill the simulation panel (Esc to close)"
+                  >⛶</button>
+                </div>
+                <div id="preview-box" class="image-box" aria-label="SLM object preview">Waiting…</div>
+              </div>
+
+              <div class="card status-card">
+                <div class="image-head">
+                  <strong>Run status</strong>
+                  <span id="run-badge" class="badge" aria-live="polite">idle</span>
+                </div>
+                <div class="metrics">
+                  <div><span class="muted">Arrangements</span><div id="m-profiles">—</div></div>
+                  <div><span class="muted">Progress</span><div id="m-progress">—</div></div>
+                  <div><span class="muted">Wall time</span><div id="m-elapsed">—</div></div>
+                  <div><span class="muted">Noise preset</span><div id="m-preset">moderate</div></div>
+                </div>
+                <div id="output-dir" class="path hidden"></div>
+              </div>
+            </section>
+
+            <section>
+              <h2 class="section-title"><span class="dot ideal"></span> Ideal camera output</h2>
+              <div id="ideal-grid" class="image-grid"></div>
+            </section>
+            <section>
+              <h2 class="section-title"><span class="dot noisy"></span> Noisy camera output</h2>
+              <div id="noisy-grid" class="image-grid"></div>
+            </section>
+
+            <section class="card diagnostics-card" id="diagnostics-card">
+              <div class="diagnostics-head">
+                <div>
+                  <div class="log-head">Digital-twin diagnostics</div>
+                  <p class="muted" style="margin:0.2rem 0 0">
+                    Visibility, transfer, I₊/I₋ / D / T<sub>eff</sub>, profiles, histograms, residual, and A–D bars + camera strip (NF/FF · T/R).
+                    Use ⛶ to enlarge any plot.
+                  </p>
+                </div>
+                <div class="diagnostics-actions">
+                  <label class="diag-select">
+                    Arrangement
+                    <select id="diag-profile">
+                      <option value="A">A</option>
+                      <option value="B">B</option>
+                      <option value="C">C</option>
+                      <option value="D">D</option>
+                    </select>
+                  </label>
+                  <label class="diag-select">
+                    Profile cut
+                    <select id="diag-cut">
+                      <option value="row">Mid-row</option>
+                      <option value="col">Mid-column</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+              <div id="diag-kpi" class="diag-kpi muted">Run a simulation to populate diagnostics.</div>
+              <div class="diag-grid">
+                <div class="diag-panel">
+                  <div class="diag-panel-head">
+                    <h3>Visibility &amp; thermal</h3>
+                    <button type="button" class="icon-btn enlarge-btn" data-enlarge="diag" data-plot="visibility"
+                      title="Enlarge to fill the simulation panel (Esc to close)">⛶</button>
+                  </div>
+                  <div id="diag-visibility" class="diag-table"></div>
+                  <div id="diag-thermal" class="diag-table"></div>
+                </div>
+                <div class="diag-panel">
+                  <div class="diag-panel-head">
+                    <h3>Effective transfer T<sub>eff</sub> / φ<sub>eff</sub></h3>
+                    <button type="button" class="icon-btn enlarge-btn" data-enlarge="diag" data-plot="transfer"
+                      title="Enlarge transfer summary">⛶</button>
+                  </div>
+                  <div id="diag-transfer" class="diag-table muted">Available after a run.</div>
+                </div>
+                <div class="diag-panel">
+                  <div class="diag-panel-head">
+                    <h3>A–D comparison (V / mean)</h3>
+                    <button type="button" class="icon-btn enlarge-btn" data-enlarge="diag" data-plot="arch"
+                      title="Enlarge to fill the simulation panel (Esc to close)">⛶</button>
+                  </div>
+                  <canvas id="diag-arch-bars" width="1040" height="440" aria-label="A-D comparison chart"></canvas>
+                </div>
+                <div class="diag-panel diag-panel-wide">
+                  <div class="diag-panel-head">
+                    <h3>A–D camera strip (Ideal / Noisy)</h3>
+                    <button type="button" class="icon-btn enlarge-btn" data-enlarge="diag" data-plot="arch-strip"
+                      title="Enlarge A–D camera strip">⛶</button>
+                  </div>
+                  <div id="diag-arch-strip" class="diag-arch-strip muted">Run A–D Ideal and/or Noisy to compare camera frames.</div>
+                </div>
+                <div class="diag-panel">
+                  <div class="diag-panel-head">
+                    <h3>Line profiles (SLM / ideal / noisy)</h3>
+                    <button type="button" class="icon-btn enlarge-btn" data-enlarge="diag" data-plot="profiles"
+                      title="Enlarge to fill the simulation panel (Esc to close)">⛶</button>
+                  </div>
+                  <canvas id="diag-profiles" width="1040" height="440" aria-label="Line profiles"></canvas>
+                </div>
+                <div class="diag-panel">
+                  <div class="diag-panel-head">
+                    <h3>Intensity histograms</h3>
+                    <button type="button" class="icon-btn enlarge-btn" data-enlarge="diag" data-plot="hist"
+                      title="Enlarge to fill the simulation panel (Esc to close)">⛶</button>
+                  </div>
+                  <canvas id="diag-hist" width="1040" height="440" aria-label="Histograms"></canvas>
+                </div>
+                <div class="diag-panel">
+                  <div class="diag-panel-head">
+                    <h3>Ideal − noisy residual</h3>
+                    <button type="button" class="icon-btn enlarge-btn" data-enlarge="diag" data-plot="residual"
+                      title="Enlarge residual">⛶</button>
+                  </div>
+                  <div id="diag-residual" class="diag-image-box muted">Needs both ideal and noisy results.</div>
+                </div>
+                <div class="diag-panel">
+                  <div class="diag-panel-head">
+                    <h3>Plus port I₊</h3>
+                    <button type="button" class="icon-btn enlarge-btn" data-enlarge="diag" data-plot="iplus"
+                      title="Enlarge plus port">⛶</button>
+                  </div>
+                  <div id="diag-iplus" class="diag-image-box muted">Available after a run.</div>
+                </div>
+                <div class="diag-panel">
+                  <div class="diag-panel-head">
+                    <h3>Minus port I₋</h3>
+                    <button type="button" class="icon-btn enlarge-btn" data-enlarge="diag" data-plot="iminus"
+                      title="Enlarge minus port">⛶</button>
+                  </div>
+                  <div id="diag-iminus" class="diag-image-box muted">Available after a run.</div>
+                </div>
+                <div class="diag-panel">
+                  <div class="diag-panel-head">
+                    <h3>Difference port D = I₊ − I₋</h3>
+                    <button type="button" class="icon-btn enlarge-btn" data-enlarge="diag" data-plot="diffport"
+                      title="Enlarge difference port">⛶</button>
+                  </div>
+                  <div id="diag-diffport" class="diag-image-box muted">Available after a run.</div>
+                </div>
+                <div class="diag-panel">
+                  <div class="diag-panel-head">
+                    <h3>T<sub>eff</sub> map</h3>
+                    <button type="button" class="icon-btn enlarge-btn" data-enlarge="diag" data-plot="teff"
+                      title="Enlarge T_eff map">⛶</button>
+                  </div>
+                  <div id="diag-teff" class="diag-image-box muted">Available after a run.</div>
+                </div>
+              </div>
+              <div id="diag-operating" class="diag-table" style="margin-top:0.65rem"></div>
+            </section>
+
+            <section class="card stage-ladder-card" id="stage-ladder-card">
+              <div class="diagnostics-head">
+                <div>
+                  <div class="log-head">Noise stage ladder</div>
+                  <p class="muted" style="margin:0.2rem 0 0">
+                    Ideal → Optics → Drift → Shot/Read → Detector → Full. Image strip, Δ-to-ideal KPIs, and SNR / V / RMS bars.
+                  </p>
+                </div>
+                <div class="diagnostics-actions">
+                  <button type="button" id="btn-stage-ladder" class="btn ghost" title="Run fixed noise-stage ladder">
+                    Run stage ladder
+                  </button>
+                </div>
+              </div>
+              <div class="stage-status-row">
+                <p class="muted" id="diag-stage-hint">
+                  Click “Run stage ladder” for Ideal → Optics → Drift → Shot/Read → Detector → Full.
+                </p>
+              </div>
+              <div id="diag-stage-strip" class="diag-stage-strip"></div>
+              <div class="diag-panel-head" style="margin-top:0.55rem">
+                <h3 style="margin:0;font-size:0.78rem">Stage KPI bars</h3>
+                <button type="button" class="icon-btn enlarge-btn" data-enlarge="diag" data-plot="stage-kpi"
+                  title="Enlarge stage KPI chart (Esc to close)">⛶</button>
+              </div>
+              <canvas id="diag-stage-kpi" width="1400" height="360" aria-label="Stage KPI chart"></canvas>
+            </section>
+
+            <section class="card lab-card" id="lab-card">
+              <div class="diagnostics-head">
+                <div>
+                  <div class="log-head">Lab diagnostics</div>
+                  <p class="muted" style="margin:0.2rem 0 0">
+                    Mechanism matrix, four-step phase maps, I(φ) fringe curve, and one-parameter metric sweeps.
+                  </p>
+                </div>
+                <div class="diagnostics-actions">
+                  <button type="button" id="btn-mechanism-matrix" class="btn ghost" title="Run Stage-B mechanism matrix">
+                    Run mechanism matrix
+                  </button>
+                  <button type="button" id="btn-phase-step" class="btn ghost" title="Four-step phase acquisition">
+                    Run phase-step
+                  </button>
+                  <button type="button" id="btn-fringe-curve" class="btn ghost" title="Mean I₊/I₋/D vs object phase">
+                    Run I(φ) fringe
+                  </button>
+                  <label class="diag-select">
+                    Sweep parameter
+                    <select id="sweep-param">
+                      <option value="mean_photons_per_mode" selected>n̄ (photons/mode)</option>
+                      <option value="em_gain">EM gain</option>
+                      <option value="read_noise0_e">Read noise</option>
+                      <option value="sigma_blur_extra_px">Extra blur σ</option>
+                      <option value="s_focus">s_focus</option>
+                      <option value="s_align">s_align</option>
+                      <option value="s_thermal">s_thermal</option>
+                    </select>
+                  </label>
+                  <button type="button" id="btn-sweep" class="btn ghost" title="Metric vs parameter sweep">
+                    Run sweep
+                  </button>
+                </div>
+              </div>
+              <div class="stage-status-row">
+                <p class="muted" id="lab-hint">Run a lab diagnostic to populate the matrix, phase maps, fringe curve, or sweep.</p>
+              </div>
+              <div id="lab-mechanism-strip" class="diag-stage-strip"></div>
+              <div class="diag-grid" style="margin-top:0.75rem">
+                <div class="diag-panel">
+                  <div class="diag-panel-head">
+                    <h3>Phase map φ(x, y)</h3>
+                    <button type="button" class="icon-btn enlarge-btn" data-enlarge="diag" data-plot="phase-map"
+                      title="Enlarge phase map">⛶</button>
+                  </div>
+                  <div id="lab-phase-map" class="diag-image-box muted">Run phase-step first.</div>
+                </div>
+                <div class="diag-panel">
+                  <div class="diag-panel-head">
+                    <h3>Phase modulation / fringe contrast</h3>
+                    <button type="button" class="icon-btn enlarge-btn" data-enlarge="diag" data-plot="phase-mod"
+                      title="Enlarge modulation map">⛶</button>
+                  </div>
+                  <div id="lab-phase-mod" class="diag-image-box muted">Run phase-step first.</div>
+                </div>
+                <div class="diag-panel">
+                  <div class="diag-panel-head">
+                    <h3>I(φ) fringe curve</h3>
+                    <button type="button" class="icon-btn enlarge-btn" data-enlarge="diag" data-plot="fringe"
+                      title="Enlarge fringe curve">⛶</button>
+                  </div>
+                  <canvas id="lab-fringe" width="1040" height="440" aria-label="I(phi) fringe chart"></canvas>
+                  <div id="lab-fringe-summary" class="diag-kpi muted" style="margin-top:0.4rem">
+                    Run I(φ) fringe for Michelson visibility from the curve.
+                  </div>
+                  <div id="lab-fringe-table" class="diag-table" style="margin-top:0.55rem"></div>
+                </div>
+                <div class="diag-panel">
+                  <div class="diag-panel-head">
+                    <h3>Sweep curve (relative % vs first point)</h3>
+                    <button type="button" class="icon-btn enlarge-btn" data-enlarge="diag" data-plot="sweep"
+                      title="Enlarge sweep chart">⛶</button>
+                  </div>
+                  <canvas id="lab-sweep" width="1040" height="440" aria-label="Parameter sweep chart"></canvas>
+                  <div id="lab-sweep-table" class="diag-table" style="margin-top:0.55rem"></div>
+                </div>
+              </div>
+            </section>
+
+            <section class="card release-card" id="release-card">
+              <div class="diagnostics-head">
+                <div>
+                  <div class="log-head">Release verification · digital twin web</div>
+                  <p class="muted" style="margin:0.2rem 0 0">
+                    Highest-value twin teaching surfaces wired for local release (orchestration only — no new physics).
+                  </p>
+                </div>
+              </div>
+              <ul class="release-checklist" id="release-checklist">
+                <li>A–D arrangements with NF/FF · T/R captions</li>
+                <li>Ideal / noisy forward images + SNR · V · residual KPIs</li>
+                <li>Line profiles, histograms, residual, D-port, I₊/I₋, T<sub>eff</sub></li>
+                <li>A–D V bars + Ideal/Noisy camera strip</li>
+                <li>Noise stage ladder + mechanism ablation matrix</li>
+                <li>Four-step phase maps + I(φ) fringe curve with Michelson V</li>
+                <li>One-parameter metric sweeps (relative %)</li>
+                <li>Lens rings / etalon / focus–Δz bridges for visible optics knobs</li>
+                <li class="muted">Out of scope for this release: knife-edge MTF, Fig.6 C-lab rings, dataset export, photon-counting mode</li>
+              </ul>
+            </section>
           </div>
         </section>
 
-        <section>
-          <h2 class="section-title"><span class="dot ideal"></span> Ideal camera output</h2>
-          <div id="ideal-grid" class="image-grid"></div>
+        <section class="card log-card">
+          <div class="log-head">Event log</div>
+          <pre id="log" class="log">Press Run simulation or Ctrl+Enter.</pre>
         </section>
-        <section>
-          <h2 class="section-title"><span class="dot noisy"></span> Noisy camera output</h2>
-          <div id="noisy-grid" class="image-grid"></div>
+
+        <section id="credits" class="card credits-card" aria-label="Development team">
+          <div class="credits-head">
+            <div>
+              <div class="log-head">Development team</div>
+              <p class="credits-affil">
+                This application was developed at the
+                <strong>Center for Innovation and Development of Artificial Intelligence Technologies</strong>,
+                University of Isfahan.
+              </p>
+            </div>
+            <img class="credits-logo" src="{% static 'ui/img/CIDAIT_Logo.png' %}" alt="CIDAIT" />
+          </div>
+          <ul class="credits-names">
+            <li>Fateme Haji Shafiee</li>
+            <li>Atefeh Khaki Bakhtiarvand</li>
+            <li>Arash Rayan</li>
+            <li>Mohammad Zakaria Rajabi</li>
+            <li>Hamid Reza Mohammadi</li>
+            <li>Hamid Reza Marateb</li>
+            <li>Rasoul Roknizadeh</li>
+          </ul>
         </section>
       </main>
     </div>
+
+    <div id="team-modal" class="team-modal hidden" role="dialog" aria-modal="true" aria-labelledby="team-modal-title">
+      <div class="team-modal-backdrop" data-team-close></div>
+      <div class="team-modal-panel card">
+        <div class="team-modal-head">
+          <div>
+            <h2 id="team-modal-title">Development team</h2>
+            <p class="credits-affil">
+              This application was developed at the
+              <strong>Center for Innovation and Development of Artificial Intelligence Technologies</strong>,
+              University of Isfahan.
+            </p>
+          </div>
+          <button type="button" class="btn tiny ghost" data-team-close title="Close">Close ✕</button>
+        </div>
+        <ul class="credits-names">
+          <li>Fateme Haji Shafiee</li>
+          <li>Atefeh Khaki Bakhtiarvand</li>
+          <li>Arash Rayan</li>
+          <li>Mohammad Zakaria Rajabi</li>
+          <li>Hamid Reza Mohammadi</li>
+          <li>Hamid Reza Marateb</li>
+          <li>Rasoul Roknizadeh</li>
+        </ul>
+      </div>
+    </div>
   </div>
-  <script src="{% static 'ui/app.js' %}"></script>
+  <script src="{% static 'ui/app.js' %}?v=20261118d"></script>
 </body>
 </html>

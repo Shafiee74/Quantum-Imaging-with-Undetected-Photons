@@ -1,6 +1,6 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { Check, Maximize2, Minimize2 } from "lucide-react";
 import type { ProfileInfo } from "@/lib/types";
 import { Badge, cx } from "./ui";
 
@@ -50,14 +50,25 @@ function Schematic({ profile }: { profile: ProfileInfo }) {
   );
 }
 
+export const ARCHITECTURE_SRC: Record<string, string> = {
+  A: "/Architectures/Fig1-A.png",
+  B: "/Architectures/Fig1-B.png",
+  C: "/Architectures/Fig1-C.png",
+  D: "/Architectures/Fig1-D.png",
+};
+
 export function ArrangementCard({
   profile,
   selected,
   onToggle,
+  archEnlarged,
+  onToggleArchEnlarge,
 }: {
   profile: ProfileInfo;
   selected: boolean;
   onToggle: () => void;
+  archEnlarged?: boolean;
+  onToggleArchEnlarge?: () => void;
 }) {
   const two = profile.architecture === "two_crystal";
   const far = profile.imaging_mode === "far_field";
@@ -99,9 +110,37 @@ export function ArrangementCard({
       <div className="my-1 opacity-90 transition-opacity group-hover:opacity-100">
         <Schematic profile={profile} />
       </div>
-      <div className="flex flex-wrap gap-1">
-        <Badge tone={far ? "violet" : "sky"}>{far ? "Far field" : "Near field"}</Badge>
-        <Badge tone={two ? "green" : "amber"}>{two ? "Transmissive T" : "Reflective R"}</Badge>
+      <div className="flex flex-wrap items-end justify-between gap-1">
+        <div className="flex flex-wrap gap-1">
+          <Badge tone={far ? "violet" : "sky"}>{far ? "Far field" : "Near field"}</Badge>
+          <Badge tone={two ? "green" : "amber"}>{two ? "Transmissive T" : "Reflective R"}</Badge>
+        </div>
+        {onToggleArchEnlarge && (
+          <span
+            role="button"
+            tabIndex={0}
+            title={archEnlarged ? "Close architecture" : "Enlarge architecture in simulation panel"}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleArchEnlarge();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                e.stopPropagation();
+                onToggleArchEnlarge();
+              }
+            }}
+            className={cx(
+              "ml-auto grid h-7 w-7 place-items-center rounded-md ring-1 transition-colors",
+              archEnlarged
+                ? "bg-sky-500/20 text-sky-200 ring-sky-400/40"
+                : "bg-ink-800 text-ink-400 ring-white/5 hover:bg-ink-700 hover:text-white",
+            )}
+          >
+            {archEnlarged ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+          </span>
+        )}
       </div>
     </button>
   );

@@ -24,6 +24,8 @@ body {
   color: var(--color-ink-200);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 body {
@@ -33,6 +35,20 @@ body {
     radial-gradient(40rem 30rem at 50% 120%, rgba(255, 77, 109, 0.08), transparent 60%);
   background-attachment: fixed;
   min-height: 100vh;
+  min-height: 100dvh;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
 }
 
 .grid-bg {

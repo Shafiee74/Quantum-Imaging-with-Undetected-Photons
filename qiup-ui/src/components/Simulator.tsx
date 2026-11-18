@@ -8,6 +8,7 @@ import {
   FileJson,
   FolderOpen,
   Loader2,
+  Minimize2,
   Play,
   RefreshCw,
   Square,
@@ -26,6 +27,7 @@ import type {
   RunConfig,
   RunEvent,
 } from "@/lib/types";
+import { ARCHITECTURE_SRC } from "./ArrangementCard";
 import {
   ArrangementsPanel,
   GeometryPanel,
@@ -43,8 +45,13 @@ import { Badge, cx } from "./ui";
 
 type DefaultsResponse = Defaults & { backend?: { python: string; root: string }; error?: string };
 type LogLine = { t: number; kind: "info" | "ok" | "err"; text: string };
+type SimEnlarge =
+  | { kind: "object" }
+  | { kind: "result"; key: string; title: string; subtitle?: string; tone: "ideal" | "noisy"; fileName: string }
+  | { kind: "architecture"; id: ProfileId };
 
 const MODES: Mode[] = ["ideal", "noisy"];
+const HEADER_H = 61;
 
 function initialThermal(defaults: Defaults): Record<ProfileId, Record<string, number>> {
   return Object.fromEntries(PROFILE_IDS.map((id) => [id, { ...defaults.profiles[id].thermal }])) as Record<
@@ -70,9 +77,15 @@ function applyPreset(defaults: Defaults, preset: NoisePreset): { setup: ParamDic
   return { setup, latents };
 }
 
+function objectPreviewReady(object: ObjectSpec): boolean {
+  if (object.source === "upload") return Boolean(object.png_base64);
+  return true;
+}
+
 export default function Simulator() {
   const [defaults, setDefaults] = useState<DefaultsResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [viewport, setViewport] = useState({ w: 1280, h: 800 });
 
   const [profiles, setProfiles] = useState<ProfileId[]>([...PROFILE_IDS]);
   const [object, setObject] = useState<ObjectSpec>({ source: "mnist", mnist_index: 5 });
@@ -95,10 +108,18 @@ export default function Simulator() {
   const [outputDir, setOutputDir] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState<number | null>(null);
   const [log, setLog] = useState<LogLine[]>([]);
+  const [simEnlarge, setSimEnlarge] = useState<SimEnlarge | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const pushLog = useCallback((kind: LogLine["kind"], text: string) => {
     setLog((l) => [...l.slice(-199), { t: Date.now(), kind, text }]);
+  }, []);
+
+  useEffect(() => {
+    const update = () => setViewport({ w: window.innerWidth, h: window.innerHeight });
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
   }, []);
 
   const resetFromDefaults = useCallback((d: Defaults) => {
@@ -111,6 +132,7 @@ export default function Simulator() {
     setSeed(d.seed);
     setObject({ source: "mnist", mnist_index: d.mnist_index });
     setPreset("moderate");
+    setSimEnlarge(null);
   }, []);
 
   useEffect(() => {
@@ -125,7 +147,10 @@ export default function Simulator() {
   }, [resetFromDefaults]);
 
   useEffect(() => {
-    if (!defaults) return;
+    if (!defaults || !objectPreviewReady(object)) {
+      if (object.source === "upload" && !object.png_base64) setPreview(null);
+      return;
+    }
     const ctrl = new AbortController();
     const timer = setTimeout(() => {
       setPreviewBusy(true);
@@ -175,7 +200,18 @@ export default function Simulator() {
           break;
         case "object":
           setPreview(ev);
-          pushLog("info", `SLM object: ${ev.source === "mnist" ? `MNIST #${ev.mnist_index} (label ${ev.label})` : ev.label}`);
+          pushLog(
+            "info",
+            `SLM object: ${
+              ev.source === "mnist"
+                ? `MNIST #${ev.mnist_index} (label ${ev.label})`
+                : ev.source === "rabbit"
+                  ? "rabbit mask"
+                  : ev.source === "upload"
+                    ? String(ev.label)
+                    : String(ev.label)
+            }`,
+          );
           break;
         case "progress":
           setCards((c) => ({ ...c, [`${ev.profile}_${ev.mode}`]: { status: "running" } }));
@@ -213,11 +249,16 @@ export default function Simulator() {
 
   const run = useCallback(async () => {
     if (running || profiles.length === 0 || (!modes.ideal && !modes.noisy)) return;
+    if (object.source === "upload" && !object.png_base64) {
+      pushLog("err", "upload an SLM mask image before running");
+      return;
+    }
     const ctrl = new AbortController();
     abortRef.current = ctrl;
     setRunning(true);
     setElapsed(null);
     setOutputDir(null);
+    setSimEnlarge(null);
     setCards(
       Object.fromEntries(
         profiles.flatMap((p) => MODES.filter((m) => modes[m]).map((m) => [`${p}_${m}`, { status: "queued" } as CardState])),
@@ -262,7 +303,7 @@ export default function Simulator() {
       setRunning(false);
       abortRef.current = null;
     }
-  }, [running, profiles, modes, config, handleEvent, pushLog]);
+  }, [running, profiles, modes, object, config, handleEvent, pushLog]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -270,6 +311,7 @@ export default function Simulator() {
         e.preventDefault();
         void run();
       }
+      if (e.key === "Escape") setSimEnlarge(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -310,15 +352,19 @@ export default function Simulator() {
     URL.revokeObjectURL(url);
   };
 
+  const toggleArchEnlarge = (id: ProfileId) => {
+    setSimEnlarge((cur) => (cur?.kind === "architecture" && cur.id === id ? null : { kind: "architecture", id }));
+  };
+
   if (loadError) {
     return (
-      <div className="grid min-h-screen place-items-center p-8">
+      <div className="grid min-h-[100dvh] max-w-[100vw] place-items-center overflow-x-hidden p-8">
         <div className="glass max-w-xl rounded-2xl p-6">
           <div className="mb-3 flex items-center gap-2 text-rose-300">
             <AlertTriangle className="h-5 w-5" />
             <h2 className="font-semibold">Python backend unavailable</h2>
           </div>
-          <pre className="scroll-thin max-h-64 overflow-auto whitespace-pre-wrap rounded-lg bg-ink-950 p-3 font-mono text-[11px] text-ink-300">
+          <pre className="scroll-thin max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-ink-950 p-3 font-mono text-[11px] text-ink-300">
             {loadError}
           </pre>
           <p className="mt-3 text-[12px] text-ink-400">
@@ -331,7 +377,7 @@ export default function Simulator() {
 
   if (!defaults) {
     return (
-      <div className="grid min-h-screen place-items-center">
+      <div className="grid min-h-[100dvh] place-items-center">
         <div className="flex flex-col items-center gap-3 text-ink-300">
           <Atom className="h-10 w-10 animate-spin text-sky-400 [animation-duration:3s]" />
           <p className="text-sm">Starting QIUP simulator backend…</p>
@@ -340,38 +386,66 @@ export default function Simulator() {
     );
   }
 
-  const canRun = !running && profiles.length > 0 && (modes.ideal || modes.noisy);
+  const canRun = !running && profiles.length > 0 && (modes.ideal || modes.noisy) && objectPreviewReady(object);
   const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
   const shownModes = MODES.filter((m) => modes[m]);
+  const sidebarW = viewport.w >= 1024 ? Math.min(400, Math.max(300, Math.round(viewport.w * 0.3))) : viewport.w;
+  const objectTitle = preview
+    ? preview.source === "mnist"
+      ? `MNIST #${preview.mnist_index}`
+      : String(preview.label)
+    : "SLM object";
+  const objectSubtitle =
+    preview?.source === "mnist"
+      ? `digit label ${preview.label} · ${size}×${size} px`
+      : `${size}×${size} px amplitude mask`;
+  const objectState: CardState = preview
+    ? { status: "done", image: preview.image }
+    : previewBusy
+      ? { status: "running" }
+      : { status: "idle" };
+
+  const enlargedResult =
+    simEnlarge?.kind === "result" ? (cards[simEnlarge.key] as CardState | undefined) : undefined;
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div
+      className="flex max-w-[100vw] flex-col overflow-x-hidden"
+      style={{ minHeight: "100dvh" }}
+      data-viewport={`${viewport.w}x${viewport.h}`}
+    >
       <header className="sticky top-0 z-40 border-b border-white/5 bg-ink-950/75 backdrop-blur-xl">
-        <div className="flex items-center gap-4 px-6 py-3">
-          <div className="flex items-center gap-3">
-            <div className="relative grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-500 via-sky-500 to-emerald-400 shadow-lg shadow-sky-500/20">
-              <Atom className="h-5 w-5 text-white" />
+        <div className="flex max-w-[100vw] items-center gap-3 px-4 py-3 sm:gap-4 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex shrink-0 items-center gap-2">
+              <div className="relative grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-500 via-sky-500 to-emerald-400 shadow-lg shadow-sky-500/20">
+                <Atom className="h-5 w-5 text-white" />
+              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/CQST_Logo.png" alt="CQST" className="h-9 w-auto max-w-[72px] object-contain" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/CIDAIT_Logo.png" alt="CIDAIT" className="h-9 w-auto max-w-[72px] object-contain" />
             </div>
-            <div>
-              <h1 className="text-[15px] font-semibold tracking-tight text-white">
+            <div className="min-w-0">
+              <h1 className="truncate text-[15px] font-semibold tracking-tight text-white">
                 QIUP Simulator
                 <span className="ml-2 align-middle">
                   <Badge tone="sky">v{defaults.package_version}</Badge>
                 </span>
-                <span className="ml-2 align-middle">
+                <span className="ml-2 hidden align-middle sm:inline">
                   <Badge tone="amber">prototype · pre-validation</Badge>
                 </span>
               </h1>
-              <p className="text-[11px] text-ink-400">
+              <p className="truncate text-[11px] text-ink-400">
                 Quantum imaging with undetected photons · four-arrangement simulator ·{" "}
                 {defaults.calibration_status ?? "NOT YET EXPERIMENTALLY CALIBRATED"}
               </p>
             </div>
           </div>
-          <div className="ml-auto flex items-center gap-2">
-            <span className="hidden items-center gap-1.5 rounded-lg bg-ink-900/80 px-2.5 py-1.5 text-[11px] text-ink-400 ring-1 ring-white/5 lg:flex">
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            <span className="hidden items-center gap-1.5 rounded-lg bg-ink-900/80 px-2.5 py-1.5 text-[11px] text-ink-400 ring-1 ring-white/5 xl:flex">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px] shadow-emerald-400" />
-              backend · {defaults.backend?.python ?? "python"}
+              <span className="max-w-[14rem] truncate">backend · {defaults.backend?.python ?? "python"}</span>
             </span>
             <button
               type="button"
@@ -385,7 +459,7 @@ export default function Simulator() {
               type="button"
               onClick={downloadConfig}
               title="Download run config JSON"
-              className="flex items-center gap-1.5 rounded-lg bg-ink-800 px-3 py-2 text-[12px] text-ink-300 ring-1 ring-white/5 hover:bg-ink-700 hover:text-white"
+              className="hidden items-center gap-1.5 rounded-lg bg-ink-800 px-3 py-2 text-[12px] text-ink-300 ring-1 ring-white/5 hover:bg-ink-700 hover:text-white sm:flex"
             >
               <FileJson className="h-3.5 w-3.5" /> Config
             </button>
@@ -405,7 +479,7 @@ export default function Simulator() {
                 title="Run simulation (Ctrl+Enter)"
                 className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-violet-500 px-4 py-2 text-[13px] font-semibold text-white shadow-lg shadow-sky-500/25 transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                <Play className="h-3.5 w-3.5 fill-current" /> Run simulation
+                <Play className="h-3.5 w-3.5 fill-current" /> Run
               </button>
             )}
           </div>
@@ -418,125 +492,252 @@ export default function Simulator() {
         </div>
       </header>
 
-      <div className="flex flex-1 flex-col lg:flex-row">
-        <aside className="scroll-thin w-full shrink-0 space-y-3 overflow-y-auto border-r border-white/5 p-4 lg:sticky lg:top-[61px] lg:h-[calc(100vh-61px)] lg:w-[400px]">
-          <ArrangementsPanel defaults={defaults} selected={profiles} onChange={setProfiles} />
-          <ObjectPanel object={object} onChange={setObject} maxIndex={defaults.mnist_train_count} />
-          <RunSettingsPanel seed={seed} size={size} modes={modes} sizeRange={defaults.size_range}
-            onSeed={setSeed} onSize={setSize} onModes={setModes} />
-          <SourcePanel mode={sourceMode} onMode={setSourceMode}
-            latents={sourceMode === "ideal" ? idealLatents : noisyLatents} onChange={setSourceLatent} />
-          <GeometryPanel setup={noisySetup} onChange={setGeometry} />
-          <ThermalPanel defaults={defaults} selected={profiles} thermal={thermal}
-            onChange={(p, k, v) => setThermal((t) => ({ ...t, [p]: { ...t[p], [k]: v } }))}
-            onReset={() => setThermal(initialThermal(defaults))} />
-          <NoisePanel setup={noisySetup} latents={noisyLatents} preset={preset} onPreset={onPreset}
-            onSetup={(k: string, v: ParamValue) => {
-              setNoisySetup((s) => ({ ...s, [k]: v }));
-              if (k !== "blur_model") setPreset("custom");
-            }}
-            onLatent={(k, v) => {
-              setNoisyLatents((s) => ({ ...s, [k]: v }));
-              setPreset("custom");
-            }} />
+      <div className="flex min-w-0 flex-1 flex-col lg:flex-row">
+        <aside
+          className="flex w-full shrink-0 flex-col border-r border-white/5 lg:sticky lg:top-[61px]"
+          style={{
+            width: viewport.w >= 1024 ? sidebarW : "100%",
+            maxWidth: "100vw",
+            height: viewport.w >= 1024 ? `calc(100dvh - ${HEADER_H}px)` : undefined,
+          }}
+        >
+          <div className="shrink-0 space-y-3 border-b border-white/5 p-4">
+            <ArrangementsPanel
+              defaults={defaults}
+              selected={profiles}
+              onChange={setProfiles}
+              archEnlarge={simEnlarge?.kind === "architecture" ? simEnlarge.id : null}
+              onToggleArchEnlarge={toggleArchEnlarge}
+            />
+          </div>
+          <div className="scroll-thin min-h-0 flex-1 space-y-3 overflow-y-auto overflow-x-hidden p-4">
+            <ObjectPanel object={object} onChange={setObject} maxIndex={defaults.mnist_train_count} />
+            <RunSettingsPanel
+              seed={seed}
+              size={size}
+              modes={modes}
+              sizeRange={defaults.size_range}
+              onSeed={setSeed}
+              onSize={setSize}
+              onModes={setModes}
+            />
+            <SourcePanel
+              mode={sourceMode}
+              onMode={setSourceMode}
+              latents={sourceMode === "ideal" ? idealLatents : noisyLatents}
+              onChange={setSourceLatent}
+            />
+            <GeometryPanel setup={noisySetup} onChange={setGeometry} />
+            <ThermalPanel
+              defaults={defaults}
+              selected={profiles}
+              thermal={thermal}
+              onChange={(p, k, v) => setThermal((t) => ({ ...t, [p]: { ...t[p], [k]: v } }))}
+              onReset={() => setThermal(initialThermal(defaults))}
+            />
+            <NoisePanel
+              setup={noisySetup}
+              latents={noisyLatents}
+              preset={preset}
+              onPreset={onPreset}
+              onSetup={(k: string, v: ParamValue) => {
+                setNoisySetup((s) => ({ ...s, [k]: v }));
+                if (k !== "blur_model") setPreset("custom");
+              }}
+              onLatent={(k, v) => {
+                setNoisyLatents((s) => ({ ...s, [k]: v }));
+                setPreset("custom");
+              }}
+            />
+          </div>
         </aside>
 
-        <main className="min-w-0 flex-1 space-y-5 p-5">
-          <section className="grid gap-4 xl:grid-cols-[280px_1fr]">
-            <ImageCard
-              title={
-                preview
-                  ? preview.source === "mnist"
-                    ? `MNIST #${preview.mnist_index}`
-                    : String(preview.label)
-                  : "SLM object"
-              }
-              subtitle={
-                preview?.source === "mnist"
-                  ? `digit label ${preview.label} · ${size}×${size} px`
-                  : `${size}×${size} px amplitude mask`
-              }
-              tone="object"
-              fileName="slm_object.png"
-              state={preview ? { status: "done", image: preview.image } : previewBusy ? { status: "running" } : { status: "idle" }}
-            />
-            <div className="glass flex flex-col rounded-xl p-4">
-              <div className="flex items-center gap-2">
-                <Activity className="h-4 w-4 text-sky-400" />
-                <h2 className="text-[13px] font-semibold text-white">Run status</h2>
-                <span className="ml-auto">
-                  {running ? (
-                    <Badge tone="sky"><Loader2 className="h-3 w-3 animate-spin" /> running</Badge>
-                  ) : elapsed !== null ? (
-                    <Badge tone="green"><CheckCircle2 className="h-3 w-3" /> complete</Badge>
-                  ) : (
-                    <Badge>idle</Badge>
-                  )}
+        <main className="flex min-w-0 max-w-full flex-1 flex-col gap-5 overflow-x-hidden p-4 sm:p-5">
+          <div className="glass flex flex-col rounded-xl p-4">
+            <div className="flex items-center gap-2">
+              <Activity className="h-4 w-4 text-sky-400" />
+              <h2 className="text-[13px] font-semibold text-white">Run status</h2>
+              <span className="ml-auto">
+                {running ? (
+                  <Badge tone="sky">
+                    <Loader2 className="h-3 w-3 animate-spin" /> running
+                  </Badge>
+                ) : elapsed !== null ? (
+                  <Badge tone="green">
+                    <CheckCircle2 className="h-3 w-3" /> complete
+                  </Badge>
+                ) : (
+                  <Badge>idle</Badge>
+                )}
+              </span>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <Metric label="Arrangements" value={profiles.length ? profiles.join(" · ") : "—"} />
+              <Metric label="Progress" value={progress.total ? `${progress.done} / ${progress.total}` : "—"} />
+              <Metric label="Wall time" value={elapsed !== null ? `${elapsed.toFixed(1)} s` : running ? "…" : "—"} />
+              <Metric label="Noise preset" value={modes.noisy ? preset : "n/a"} />
+            </div>
+            {outputDir && (
+              <div className="mt-3 flex items-start gap-2 rounded-lg bg-ink-950/60 px-3 py-2 font-mono text-[11px] text-ink-300 ring-1 ring-white/5">
+                <FolderOpen className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-300" />
+                <span className="min-w-0 break-all whitespace-pre-wrap" title={outputDir}>
+                  {outputDir}
                 </span>
               </div>
-              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <Metric label="Arrangements" value={profiles.length ? profiles.join(" · ") : "—"} />
-                <Metric label="Progress" value={progress.total ? `${progress.done} / ${progress.total}` : "—"} />
-                <Metric label="Wall time" value={elapsed !== null ? `${elapsed.toFixed(1)} s` : running ? "…" : "—"} />
-                <Metric label="Noise preset" value={modes.noisy ? preset : "n/a"} />
+            )}
+          </div>
+
+          <section className="min-w-0 flex-1">
+            {simEnlarge?.kind === "architecture" ? (
+              <div className="glass flex min-h-[min(70vh,720px)] flex-col rounded-xl p-4 ring-1 ring-sky-400/30">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="truncate text-[13px] font-semibold text-white">
+                      Arrangement {simEnlarge.id} · full architecture
+                    </h2>
+                    <p className="truncate text-[11px] text-ink-400">
+                      {defaults.profiles[simEnlarge.id].label} · shown in simulation panel
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSimEnlarge(null)}
+                    className="flex items-center gap-1.5 rounded-lg bg-ink-800 px-3 py-2 text-[12px] text-ink-200 ring-1 ring-white/5 hover:bg-ink-700"
+                  >
+                    <Minimize2 className="h-3.5 w-3.5" /> Close
+                  </button>
+                </div>
+                <div className="grid flex-1 place-items-center overflow-hidden rounded-lg bg-ink-950/80 p-2 ring-1 ring-white/5">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={ARCHITECTURE_SRC[simEnlarge.id]}
+                    alt={`Architecture ${simEnlarge.id}`}
+                    className="max-h-[min(65vh,680px)] max-w-full object-contain"
+                  />
+                </div>
               </div>
-              {outputDir && (
-                <div className="mt-3 flex items-center gap-2 rounded-lg bg-ink-950/60 px-3 py-2 font-mono text-[11px] text-ink-300 ring-1 ring-white/5">
-                  <FolderOpen className="h-3.5 w-3.5 shrink-0 text-amber-300" />
-                  <span className="truncate" title={outputDir}>{outputDir}</span>
-                </div>
-              )}
-              <div className="mt-3 flex min-h-0 flex-1 flex-col">
-                <div className="mb-1 flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-ink-400">
-                  <Terminal className="h-3 w-3" /> Event log
-                </div>
-                <div className="scroll-thin h-28 flex-1 overflow-y-auto rounded-lg bg-ink-950/70 p-2 font-mono text-[11px] ring-1 ring-white/5">
-                  {log.length === 0 && <div className="text-ink-600">Press Run simulation or Ctrl+Enter.</div>}
-                  {log.map((l, i) => (
-                    <div key={i} className={cx(l.kind === "err" ? "text-rose-300" : l.kind === "ok" ? "text-emerald-300" : "text-ink-300")}>
-                      <span className="text-ink-600">{new Date(l.t).toLocaleTimeString()} </span>
-                      {l.text}
-                    </div>
-                  ))}
-                </div>
+            ) : simEnlarge?.kind === "object" ? (
+              <div className="mx-auto w-full max-w-3xl">
+                <ImageCard
+                  title={objectTitle}
+                  subtitle={objectSubtitle}
+                  tone="object"
+                  fileName="slm_object.png"
+                  state={objectState}
+                  enlarged
+                  onToggleEnlarge={() => setSimEnlarge(null)}
+                />
               </div>
-            </div>
+            ) : simEnlarge?.kind === "result" && enlargedResult?.status === "done" ? (
+              <div className="mx-auto w-full max-w-3xl">
+                <ImageCard
+                  title={simEnlarge.title}
+                  subtitle={simEnlarge.subtitle}
+                  tone={simEnlarge.tone}
+                  fileName={simEnlarge.fileName}
+                  state={enlargedResult}
+                  enlarged
+                  onToggleEnlarge={() => setSimEnlarge(null)}
+                />
+              </div>
+            ) : (
+              <div className="space-y-5">
+                <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
+                  <ImageCard
+                    title={objectTitle}
+                    subtitle={objectSubtitle}
+                    tone="object"
+                    fileName="slm_object.png"
+                    state={objectState}
+                    enlarged={false}
+                    onToggleEnlarge={() =>
+                      setSimEnlarge((cur) => (cur?.kind === "object" ? null : { kind: "object" }))
+                    }
+                  />
+                  <div className="glass flex min-w-0 flex-col justify-center rounded-xl p-4 text-[12px] text-ink-400">
+                    <p>
+                      Use the enlarge toggle on any simulated image to fill this simulation panel. Architecture enlarge
+                      on Arrangements cards also opens here (not inside the sidebar).
+                    </p>
+                    <p className="mt-2 text-[11px] text-ink-500">
+                      Viewport {viewport.w}×{viewport.h} · Esc closes enlarge
+                    </p>
+                  </div>
+                </section>
+
+                {profiles.length === 0 || shownModes.length === 0 ? (
+                  <div className="glass grid place-items-center rounded-xl p-12 text-sm text-ink-400">
+                    Select at least one arrangement and one output mode.
+                  </div>
+                ) : (
+                  shownModes.map((mode) => (
+                    <section key={mode} className="min-w-0">
+                      <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2">
+                        <span className={cx("h-2 w-2 rounded-full", mode === "ideal" ? "bg-emerald-400" : "bg-rose-400")} />
+                        <h2 className="text-[13px] font-semibold capitalize text-white">{mode} camera output</h2>
+                        <span className="text-[11px] text-ink-400">
+                          {mode === "ideal"
+                            ? "noise-free signal image — all drift, optical blur and detector noise disabled"
+                            : "detector frame with drift latents, optical blur and EMCCD noise"}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+                        {profiles.map((p) => {
+                          const info = defaults.profiles[p];
+                          const key = `${p}_${mode}`;
+                          return (
+                            <ImageCard
+                              key={key}
+                              title={`${p} · ${info.label}`}
+                              subtitle={`${info.architecture.replaceAll("_", " ")} · ${info.imaging_mode.replace("_", " ")}`}
+                              tone={mode}
+                              fileName={`${p}_${mode}.png`}
+                              state={cards[key] ?? { status: "idle" }}
+                              onToggleEnlarge={() =>
+                                setSimEnlarge((cur) =>
+                                  cur?.kind === "result" && cur.key === key
+                                    ? null
+                                    : {
+                                        kind: "result",
+                                        key,
+                                        title: `${p} · ${info.label}`,
+                                        subtitle: `${info.architecture.replaceAll("_", " ")} · ${info.imaging_mode.replace("_", " ")}`,
+                                        tone: mode,
+                                        fileName: `${p}_${mode}.png`,
+                                      },
+                                )
+                              }
+                            />
+                          );
+                        })}
+                      </div>
+                    </section>
+                  ))
+                )}
+              </div>
+            )}
           </section>
 
-          {profiles.length === 0 || shownModes.length === 0 ? (
-            <div className="glass grid place-items-center rounded-xl p-12 text-sm text-ink-400">
-              Select at least one arrangement and one output mode.
+          <section className="glass flex min-h-0 flex-col rounded-xl p-4">
+            <div className="mb-2 flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-ink-400">
+              <Terminal className="h-3 w-3" /> Event log
             </div>
-          ) : (
-            shownModes.map((mode) => (
-              <section key={mode}>
-                <div className="mb-2 flex items-center gap-2">
-                  <span className={cx("h-2 w-2 rounded-full", mode === "ideal" ? "bg-emerald-400" : "bg-rose-400")} />
-                  <h2 className="text-[13px] font-semibold capitalize text-white">{mode} camera output</h2>
-                  <span className="text-[11px] text-ink-400">
-                    {mode === "ideal"
-                      ? "noise-free signal image — all drift, optical blur and detector noise disabled"
-                      : "detector frame with drift latents, optical blur and EMCCD noise"}
-                  </span>
+            <div className="scroll-thin h-40 overflow-y-auto overflow-x-hidden rounded-lg bg-ink-950/70 p-2 font-mono text-[11px] ring-1 ring-white/5">
+              {log.length === 0 && <div className="text-ink-600">Press Run simulation or Ctrl+Enter.</div>}
+              {log.map((l, i) => (
+                <div
+                  key={i}
+                  className={cx(
+                    "break-words whitespace-pre-wrap",
+                    l.kind === "err" ? "text-rose-300" : l.kind === "ok" ? "text-emerald-300" : "text-ink-300",
+                  )}
+                >
+                  <span className="text-ink-600">{new Date(l.t).toLocaleTimeString()} </span>
+                  {l.text}
                 </div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
-                  {profiles.map((p) => {
-                    const info = defaults.profiles[p];
-                    return (
-                      <ImageCard
-                        key={`${p}_${mode}`}
-                        title={`${p} · ${info.label}`}
-                        subtitle={`${info.architecture.replaceAll("_", " ")} · ${info.imaging_mode.replace("_", " ")}`}
-                        tone={mode}
-                        fileName={`${p}_${mode}.png`}
-                        state={cards[`${p}_${mode}`] ?? { status: "idle" }}
-                      />
-                    );
-                  })}
-                </div>
-              </section>
-            ))
-          )}
+              ))}
+            </div>
+          </section>
         </main>
       </div>
     </div>
@@ -545,9 +746,9 @@ export default function Simulator() {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg bg-ink-950/60 px-3 py-2 ring-1 ring-white/5">
+    <div className="min-w-0 rounded-lg bg-ink-950/60 px-3 py-2 ring-1 ring-white/5">
       <div className="text-[10px] uppercase tracking-wider text-ink-400">{label}</div>
-      <div className="mt-0.5 truncate font-mono text-[13px] capitalize text-white">{value}</div>
+      <div className="mt-0.5 break-words font-mono text-[13px] capitalize text-white">{value}</div>
     </div>
   );
 }
