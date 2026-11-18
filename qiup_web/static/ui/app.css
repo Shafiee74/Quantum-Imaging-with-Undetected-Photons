@@ -635,11 +635,12 @@ img, svg, video, canvas { max-width: 100%; }
   position: relative;
   width: 100%;
   height: 100%;
-  min-height: 320px;
+  min-height: 420px;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  justify-content: center;
+  justify-content: stretch;
   gap: 0.35rem;
   box-sizing: border-box;
   padding: 0.25rem;
@@ -648,7 +649,7 @@ img, svg, video, canvas { max-width: 100%; }
   width: 100%;
   height: auto;
   flex: 1 1 auto;
-  min-height: 0;
+  min-height: 360px;
   cursor: crosshair;
   background: #0a1220;
   border-radius: 0.45rem;
@@ -692,13 +693,60 @@ img, svg, video, canvas { max-width: 100%; }
   flex: 0 0 auto;
 }
 .enlarge-body .stage-enlarge-single {
-  width: min(100%, 720px);
+  width: 100%;
+  height: 100%;
   margin: 0 auto;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: stretch;
+  gap: 0.5rem;
+  min-height: 0;
 }
 .enlarge-body .stage-enlarge-single .meta {
   font-size: 0.9rem;
   color: var(--muted);
+  flex: 0 0 auto;
+}
+.enlarge-img-frame {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: min(70vh, 640px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #04080f;
+  border-radius: 0.55rem;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.enlarge-img-frame img,
+.enlarge-img-frame img.diag-enlarge-img,
+.enlarge-img-frame img.pixelated {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  object-fit: contain !important;
+  image-rendering: pixelated;
+  display: block;
+}
+.enlarge-img-frame img.smooth {
+  image-rendering: auto !important;
+}
+.enlarge-body:has(.enlarge-img-frame),
+.enlarge-body:has(.enlarge-chart-wrap),
+.enlarge-body:has(.stage-enlarge-single) {
+  align-items: stretch;
+  justify-content: stretch;
+  padding: 0.5rem;
 }
 .diag-panel canvas {
   width: 100%;
@@ -759,24 +807,7 @@ img, svg, video, canvas { max-width: 100%; }
   color: #fbbf24;
   text-align: center;
 }
-.enlarge-body img.diag-enlarge-img {
-  width: auto !important;
-  height: auto !important;
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  image-rendering: pixelated;
-}
-.enlarge-body .diag-arch-strip {
-  width: min(100%, 72rem);
-  margin: 0 auto;
-}
-.enlarge-body .enlarge-arch-thumbs {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-.enlarge-body .diag-arch-thumb img {
-  max-height: 14rem;
-}
+/* Enlarged diagnostic images must fill .enlarge-img-frame (never stay at native px size). */
 .diag-stages-wrap { margin-top: 0.75rem; }
 .diag-stage-strip {
   display: grid;
@@ -823,6 +854,23 @@ img, svg, video, canvas { max-width: 100%; }
   border-radius: 0.5rem;
   padding: 0.35rem;
   min-width: 0;
+}
+.diag-arch-thumb-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  margin-bottom: 0.25rem;
+}
+.diag-arch-thumb-head strong {
+  display: block;
+  font-size: 0.68rem;
+  min-width: 0;
+  line-height: 1.25;
+  margin: 0;
+}
+.diag-arch-thumb-head .enlarge-btn {
+  flex: 0 0 auto;
 }
 .diag-arch-thumb strong {
   display: block;
@@ -1088,6 +1136,21 @@ img, svg, video, canvas { max-width: 100%; }
 .enlarge-body.enlarge-body-light {
   background: #ffffff;
   border-color: rgba(148, 163, 184, 0.35);
+}
+/* White canvas only for arrangement A–D architecture figures */
+.enlarge-body.enlarge-body-light .enlarge-img-frame {
+  background: #ffffff;
+}
+.enlarge-view.is-architecture {
+  background: rgba(248, 250, 252, 0.98);
+  border-color: rgba(148, 163, 184, 0.45);
+}
+.enlarge-view.is-architecture #enlarge-title,
+.enlarge-view.is-architecture #enlarge-sub {
+  color: #0f172a;
+}
+.enlarge-view.is-architecture #enlarge-sub {
+  color: #475569;
 }
 .enlarge-body img {
   width: 100%;

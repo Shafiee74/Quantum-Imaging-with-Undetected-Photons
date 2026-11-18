@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>QIUP Simulator · Django UI</title>
   <link rel="icon" href="{% static 'ui/img/favicon.svg' %}" type="image/svg+xml" />
-  <link rel="stylesheet" href="{% static 'ui/app.css' %}?v=20261118d" />
+  <link rel="stylesheet" href="{% static 'ui/app.css' %}?v=20261118h" />
   <script>
     window.QIUP_STATIC = "{% static 'ui/' %}";
   </script>
@@ -166,9 +166,10 @@
                 <div class="diag-panel diag-panel-wide">
                   <div class="diag-panel-head">
                     <h3>A–D camera strip (Ideal / Noisy)</h3>
-                    <button type="button" class="icon-btn enlarge-btn" data-enlarge="diag" data-plot="arch-strip"
-                      title="Enlarge A–D camera strip">⛶</button>
                   </div>
+                  <p class="muted" style="margin:0 0 0.35rem;font-size:0.72rem">
+                    Use ⛶ above each frame to enlarge that image.
+                  </p>
                   <div id="diag-arch-strip" class="diag-arch-strip muted">Run A–D Ideal and/or Noisy to compare camera frames.</div>
                 </div>
                 <div class="diag-panel">
@@ -419,6 +420,6 @@
       </div>
     </div>
   </div>
-  <script src="{% static 'ui/app.js' %}?v=20261118d"></script>
+  <script src="{% static 'ui/app.js' %}?v=20261118h"></script>
 </body>
 </html>

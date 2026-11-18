@@ -254,7 +254,11 @@
             state.enlarge.type === "diag" &&
             state.enlarge.plot === btn.getAttribute("data-plot") &&
             (btn.getAttribute("data-stage-id") == null ||
-              state.enlarge.stageId === btn.getAttribute("data-stage-id"));
+              state.enlarge.stageId === btn.getAttribute("data-stage-id")) &&
+            (btn.getAttribute("data-profile") == null ||
+              state.enlarge.profile === btn.getAttribute("data-profile")) &&
+            (btn.getAttribute("data-mode") == null ||
+              state.enlarge.mode === btn.getAttribute("data-mode"));
         }
       }
       btn.classList.toggle("active", active);
@@ -314,7 +318,13 @@
     state.enlarge = same ? null : next;
     renderEnlarge();
     syncEnlargeButtons();
-    if (same) restoreScrollAfterEnlarge();
+    if (same) {
+      restoreScrollAfterEnlarge();
+    } else if (state.enlarge) {
+      const main = mainScrollEl();
+      if (main) main.scrollTop = 0;
+      window.scrollTo(0, 0);
+    }
   }
 
   function teardownEnlargeChart() {
@@ -485,8 +495,8 @@
     let geom = null;
 
     const paint = (hover) => {
-      const cssW = Math.max(560, Math.min(1400, Math.round(wrap.clientWidth || 900)));
-      const cssH = Math.max(320, Math.min(620, Math.round((wrap.clientHeight || 480) - 22)));
+      const cssW = Math.max(640, Math.min(1600, Math.round(wrap.clientWidth || 980)));
+      const cssH = Math.max(420, Math.min(900, Math.round((wrap.clientHeight || 640) - 28)));
       layout = { cssW, cssH };
       const baseOpts = { ...cached.opts, cssW, cssH, dpr: 2, cacheKey: null, hover: null };
       try {
@@ -605,6 +615,11 @@
     const onLeave = () => hideTip();
     const onResize = () => paint(null);
     paint(null);
+    // Re-paint after flex layout settles so the chart fills the enlarge panel.
+    window.requestAnimationFrame(() => {
+      paint(null);
+      window.requestAnimationFrame(() => paint(null));
+    });
     canvas.addEventListener("mousemove", onMove);
     canvas.addEventListener("mouseleave", onLeave);
     window.addEventListener("resize", onResize);
@@ -613,6 +628,16 @@
       canvas.removeEventListener("mouseleave", onLeave);
       window.removeEventListener("resize", onResize);
     };
+  }
+
+  function enlargeImageHtml(src, alt, opts = {}) {
+    if (!src) return `<div class="muted">No image yet</div>`;
+    const pixelated = opts.pixelated !== false;
+    const imgClass = pixelated ? "pixelated diag-enlarge-img" : "diag-enlarge-img smooth";
+    return `
+      <div class="enlarge-img-frame">
+        <img class="${imgClass}" alt="${escapeHtml(alt || "enlarged")}" src="${src}" />
+      </div>`;
   }
 
   function findStageCard(plot, stageId) {
@@ -634,7 +659,7 @@
     if (!png) return `<div class="muted">No image for this stage</div>`;
     return `
       <div class="stage-enlarge-single">
-        <img class="pixelated diag-enlarge-img" src="data:image/png;base64,${png}" alt="${escapeHtml(stage.stage_label || stage.stage_id)}" />
+        ${enlargeImageHtml(`data:image/png;base64,${png}`, stage.stage_label || stage.stage_id)}
         <div class="meta" style="margin-top:0.75rem;text-align:center">
           SNR ${escapeHtml(snr)} · V ${escapeHtml(v)} · RMSΔ ${escapeHtml(rms)}
           ${stage.stage_explain ? `<div class="muted" style="margin-top:0.35rem">${escapeHtml(stage.stage_explain)}</div>` : ""}
@@ -657,6 +682,7 @@
       simPanel?.classList.remove("is-enlarged");
       workspace?.classList.remove("has-enlarge");
       body.classList.remove("enlarge-body-light");
+      view.classList.remove("is-architecture");
       body.innerHTML = "";
       return;
     }
@@ -666,19 +692,26 @@
     simPanel?.classList.add("is-enlarged");
     workspace?.classList.add("has-enlarge");
     const en = state.enlarge;
-    body.classList.toggle("enlarge-body-light", en.type === "architecture");
-    if (en.type === "architecture") {
+    const isArchitecture = en.type === "architecture";
+    body.classList.toggle("enlarge-body-light", isArchitecture);
+    view.classList.toggle("is-architecture", isArchitecture);
+    if (isArchitecture) {
       title.textContent = `Arrangement ${en.id} · full architecture`;
       sub.textContent = `${state.defaults?.profiles?.[en.id]?.label || ""} · shown in simulation panel`;
-      body.innerHTML = `<img alt="Architecture ${escapeHtml(en.id)}" src="${ARCHITECTURE_SRC[en.id]}" />`;
+      body.innerHTML = enlargeImageHtml(
+        ARCHITECTURE_SRC[en.id],
+        `Architecture ${en.id}`,
+        { pixelated: false }
+      );
       return;
     }
     if (en.type === "preview") {
       const img = state.images.preview;
       title.textContent = $("preview-title")?.textContent || "SLM object";
       sub.textContent = $("preview-sub")?.textContent || "";
-      if (img?.png) body.innerHTML = `<img class="pixelated" alt="preview" src="${pngSrc(img)}" />`;
-      else body.textContent = "No preview image";
+      body.innerHTML = img?.png
+        ? enlargeImageHtml(pngSrc(img), "preview")
+        : `<div class="muted">No preview image</div>`;
       return;
     }
     if (en.type === "result") {
@@ -687,8 +720,9 @@
       const info = state.defaults?.profiles?.[en.profile];
       title.textContent = `${en.profile} · ${info?.label || ""}`;
       sub.textContent = `${en.mode} · ${(info?.imaging_mode || "").replaceAll("_", " ")}`;
-      if (img?.png) body.innerHTML = `<img class="pixelated" alt="${escapeHtml(key)}" src="${pngSrc(img)}" />`;
-      else body.textContent = "No result image yet";
+      body.innerHTML = img?.png
+        ? enlargeImageHtml(pngSrc(img), key)
+        : `<div class="muted">No result image yet</div>`;
       return;
     }
     if (en.type === "diag") {
@@ -708,10 +742,13 @@
         body.innerHTML = `<div class="diag-table" style="font-size:0.95rem;max-width:40rem;margin:0 auto">${$("diag-transfer")?.innerHTML || ""}</div>`;
         return;
       }
-      if (en.plot === "arch-strip") {
-        title.textContent = "A–D camera strip";
-        sub.textContent = "Ideal / Noisy · NF/FF · T/R";
-        body.innerHTML = archStripHtml({ enlarge: true }) || `<div class="muted">Run A–D Ideal and/or Noisy first.</div>`;
+      if (en.plot === "arch-thumb") {
+        const key = `${en.profile}_${en.mode}`;
+        const img = state.images[key];
+        const diag = state.diagnostics[key]?.diagnostics;
+        title.textContent = `${archCaption(en.profile)} · ${en.mode === "noisy" ? "Noisy" : "Ideal"}`;
+        sub.textContent = `SNR ${fmtNum(diag?.snr, 2)} · V ${fmtNum(diag?.visibility?.V_50_50, 3)}`;
+        body.innerHTML = enlargeImageHtml(pngSrc(img), key);
         return;
       }
       if (en.plot === "residual" || en.plot === "diffport" || en.plot === "teff" || en.plot === "phase-map" || en.plot === "phase-mod" || en.plot === "iplus" || en.plot === "iminus") {
@@ -730,7 +767,7 @@
           ? `${caption} · min=${fmtNum(payload.min)} · max=${fmtNum(payload.max)} · mean=${fmtNum(payload.mean)}${payload.constant ? " · constant field" : ""}`
           : caption;
         body.innerHTML = payload?.png
-          ? `<img class="pixelated diag-enlarge-img" alt="${escapeHtml(titles[en.plot])}" src="data:image/png;base64,${payload.png}" />`
+          ? enlargeImageHtml(`data:image/png;base64,${payload.png}`, titles[en.plot])
           : `<div class="muted">${en.plot === "residual" ? "Run both Ideal and Noisy for this arrangement." : "No image yet — run a simulation first."}</div>`;
         return;
       }
@@ -958,6 +995,13 @@
   function renderSidebar() {
     const d = state.defaults;
     if (!d || !sidebar) return;
+
+    // Keep the user at the same place after toggles rebuild the sidebar DOM.
+    const prevScroll = sidebar.querySelector(".sidebar-scroll");
+    const savedSidebarScroll = prevScroll ? prevScroll.scrollTop : 0;
+    const mainEl = mainScrollEl();
+    const savedMainScroll = mainEl ? mainEl.scrollTop : 0;
+    const savedWindowScroll = window.scrollY || document.documentElement.scrollTop || 0;
 
     const arrangements = `
       <div style="display:flex;justify-content:flex-end;margin-bottom:0.35rem">
@@ -1190,6 +1234,24 @@
     updatePresetMetric();
     bindSidebar();
     updateViewportCss();
+
+    const restoreScroll = () => {
+      const nextScroll = sidebar.querySelector(".sidebar-scroll");
+      if (nextScroll && Number.isFinite(savedSidebarScroll)) {
+        nextScroll.scrollTop = savedSidebarScroll;
+      }
+      if (mainEl && Number.isFinite(savedMainScroll)) {
+        mainEl.scrollTop = savedMainScroll;
+      }
+      if (Number.isFinite(savedWindowScroll)) {
+        window.scrollTo(0, savedWindowScroll);
+      }
+    };
+    restoreScroll();
+    window.requestAnimationFrame(() => {
+      restoreScroll();
+      window.setTimeout(restoreScroll, 0);
+    });
   }
 
   function updatePresetMetric() {
@@ -1310,6 +1372,7 @@
       };
       card.addEventListener("click", (e) => {
         if (e.target.closest("[data-enlarge]")) return;
+        e.preventDefault();
         toggleProfile();
       });
       card.addEventListener("keydown", (e) => {
@@ -1524,7 +1587,6 @@
           state.noisySetup = next;
           markCustomPreset();
           renderSidebar();
-          bindSidebar();
         } else {
           state.noisySetup = { ...state.noisySetup, [key]: checked };
           markCustomPreset();
@@ -2219,24 +2281,34 @@
     return (hi - lo) / den;
   }
 
-  function archStripHtml(opts = {}) {
+  function archStripHtml() {
     const modes = ["ideal", "noisy"].filter((m) =>
       PROFILE_IDS.some((id) => state.images[`${id}_${m}`]?.png)
     );
     if (!modes.length) return "";
-    const enlarge = !!opts.enlarge;
     return modes.map((mode) => `
       <div class="diag-arch-row">
         <div class="diag-arch-row-label">${mode === "ideal" ? "Ideal" : "Noisy"}</div>
-        <div class="diag-arch-thumbs${enlarge ? " enlarge-arch-thumbs" : ""}">
+        <div class="diag-arch-thumbs">
           ${PROFILE_IDS.map((id) => {
             const img = state.images[`${id}_${mode}`];
             const diag = state.diagnostics[`${id}_${mode}`]?.diagnostics;
             const snr = diag?.snr;
             const v = diag?.visibility?.V_50_50;
+            const enlarged =
+              state.enlarge?.type === "diag" &&
+              state.enlarge?.plot === "arch-thumb" &&
+              state.enlarge?.profile === id &&
+              state.enlarge?.mode === mode;
             return `
               <div class="diag-arch-thumb" title="${escapeHtml(archCaption(id))}">
-                <strong>${escapeHtml(archCaption(id))}</strong>
+                <div class="diag-arch-thumb-head">
+                  <strong>${escapeHtml(archCaption(id))}</strong>
+                  <button type="button" class="icon-btn enlarge-btn ${enlarged ? "active" : ""}"
+                    data-enlarge="diag" data-plot="arch-thumb"
+                    data-profile="${escapeHtml(id)}" data-mode="${escapeHtml(mode)}"
+                    title="Enlarge this ${mode} frame (Esc to close)" ${img?.png ? "" : "disabled"}>⛶</button>
+                </div>
                 ${img?.png
                   ? `<img class="pixelated" src="${pngSrc(img)}" alt="${escapeHtml(id + " " + mode)}" />`
                   : `<div class="muted tiny">—</div>`}
@@ -3033,14 +3105,18 @@
     on("diag-cut", "change", () => renderDiagnostics());
     document.addEventListener("click", (e) => {
       const btn = e.target?.closest?.('[data-enlarge="diag"]');
-      if (!btn) return;
+      if (!btn || btn.disabled) return;
       e.preventDefault();
       const plot = btn.getAttribute("data-plot");
       const stageId = btn.getAttribute("data-stage-id");
+      const profile = btn.getAttribute("data-profile");
+      const mode = btn.getAttribute("data-mode");
       setEnlarge({
         type: "diag",
         plot,
         ...(stageId != null ? { stageId } : {}),
+        ...(profile != null ? { profile } : {}),
+        ...(mode != null ? { mode } : {}),
       });
     });
     on("btn-config", "click", downloadConfig);
